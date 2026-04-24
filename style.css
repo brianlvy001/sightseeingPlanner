@@ -85,13 +85,14 @@ button[type="submit"]:disabled { background: #999; cursor: not-allowed; }
 /* ---- Two-column layout ---- */
 #content {
   display: none;
-  gap: 1rem;
-  align-items: flex-start;
 }
 
 #content.visible {
   display: grid;
   grid-template-columns: 280px 1fr;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 1rem;
 }
 
 /* ---- Left panel ---- */

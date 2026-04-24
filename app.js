@@ -31,8 +31,8 @@ form.addEventListener('submit', async (e) => {
     const top5 = rankPlaces(places).slice(0, 5);
     setStatus('');
     renderPlaces(top5);
+    content.classList.add('visible');  // must be visible before Leaflet measures dimensions
     renderMap(lat, lng, top5);
-    content.classList.add('visible');
   } catch (err) {
     setStatus(err.message, true);
   } finally {
@@ -150,6 +150,7 @@ function renderMap(centerLat, centerLng, places) {
 
   const bounds = L.latLngBounds(markers.map(m => m.getLatLng()));
   leafletMap.fitBounds(bounds, { padding: [40, 40] });
+  setTimeout(() => leafletMap.invalidateSize(), 50);
 }
 
 function formatType(tags) {
