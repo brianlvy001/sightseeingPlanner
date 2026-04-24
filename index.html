@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nearby Sightseeing</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Nearby Sightseeing</h1>
+    <p class="subtitle">Top-rated attractions within 8 miles of your location</p>
+  </header>
+
+  <main>
+    <button id="find-btn">Find Nearby Sights</button>
+    <div id="status"></div>
+    <div id="results"></div>
+  </main>
+
+  <!-- Replace YOUR_API_KEY with your Google Maps API key -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places"></script>
+  <script src="app.js"></script>
+</body>
+</html>
