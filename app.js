@@ -53,7 +53,7 @@ form.addEventListener('submit', async (e) => {
   if (!address) return;
 
   setStatus('Locating address...');
-  content.classList.remove('visible');
+  content.classList.remove('has-results');
   showPlaceholder('🔭 Deploying map engineers to your location...');
   form.querySelector('button').disabled = true;
 
@@ -80,7 +80,7 @@ form.addEventListener('submit', async (e) => {
     setStatus('');
     panelTitle.textContent = TYPE_LABELS[type];
     source === 'google' ? renderGoogleCards(top5) : renderOsmCards(top5);
-    content.classList.add('visible');
+    content.classList.add('has-results');
     source === 'google' ? renderGoogleMap(center, top5) : renderLeaflet(center, top5);
   } catch (err) {
     setStatus(err.message, true);

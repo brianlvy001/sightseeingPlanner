@@ -94,16 +94,21 @@ button[type="submit"]:disabled { background: #999; cursor: not-allowed; }
 
 #status.error { color: #c0392b; }
 
-/* ---- Two-column layout ---- */
-#content { display: none; }
-
-#content.visible {
+/* ---- Layout ---- */
+#content {
   display: grid;
-  grid-template-columns: 290px 1fr;
+  grid-template-columns: 1fr; /* single col until results load */
   gap: 1rem;
   align-items: flex-start;
   margin-top: 1rem;
 }
+
+#content.has-results {
+  grid-template-columns: 290px 1fr;
+}
+
+#places-panel { display: none; }
+#content.has-results #places-panel { display: block; }
 
 /* ---- Left panel ---- */
 #places-panel {
