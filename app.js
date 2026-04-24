@@ -1,5 +1,5 @@
 const RADIUS_METERS = 12874; // 8 miles
-const TYPES = ['tourist_attraction', 'museum', 'art_gallery', 'landmark', 'natural_feature', 'park', 'zoo', 'amusement_park', 'aquarium'];
+const MAX_RESULTS = 2;
 
 const btn    = document.getElementById('find-btn');
 const status = document.getElementById('status');
@@ -30,32 +30,22 @@ function search(lat, lng) {
   setStatus('Searching for sightseeing places nearby...');
   const service = new google.maps.places.PlacesService(document.getElementById('attr'));
 
-  const allPlaces = [];
-  const statuses = new Set();
-  let pending = TYPES.length;
-
-  TYPES.forEach(type => {
-    service.nearbySearch(
-      { location: { lat, lng }, radius: RADIUS_METERS, type },
-      (places, searchStatus) => {
-        statuses.add(searchStatus);
-        if (searchStatus === google.maps.places.PlacesServiceStatus.OK && places) {
-          places.forEach(p => {
-            if (!allPlaces.find(x => x.place_id === p.place_id)) allPlaces.push(p);
-          });
-        }
-        pending--;
-        if (pending === 0) renderResults(allPlaces, statuses);
-      }
-    );
-  });
+  service.nearbySearch(
+    { location: { lat, lng }, radius: RADIUS_METERS, type: 'tourist_attraction' },
+    (places, searchStatus) => renderResults(places, searchStatus)
+  );
 }
 
-function renderResults(places, statuses) {
+function renderResults(places, searchStatus) {
   btn.disabled = false;
 
-  if (statuses.has(google.maps.places.PlacesServiceStatus.REQUEST_DENIED)) {
+  if (searchStatus === google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
     showError('API request denied — check that the Places API is enabled and billing is active on your Google Cloud project.');
+    return;
+  }
+
+  if (searchStatus !== google.maps.places.PlacesServiceStatus.OK || !places) {
+    setStatus('No sightseeing places found within 8 miles.');
     return;
   }
 
@@ -64,14 +54,15 @@ function renderResults(places, statuses) {
     .sort((a, b) => {
       if (b.rating !== a.rating) return b.rating - a.rating;
       return (b.user_ratings_total || 0) - (a.user_ratings_total || 0);
-    });
+    })
+    .slice(0, MAX_RESULTS);
 
   if (rated.length === 0) {
     setStatus('No rated sightseeing places found within 8 miles.');
     return;
   }
 
-  setStatus(`Found ${rated.length} place${rated.length > 1 ? 's' : ''} — sorted by rating`);
+  setStatus(`Top ${rated.length} sightseeing spots nearby`);
 
   results.innerHTML = rated.map((p, i) => cardHTML(p, i)).join('');
 }
