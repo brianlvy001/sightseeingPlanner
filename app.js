@@ -11,12 +11,6 @@ const mapPlaceholder = document.getElementById('map-placeholder');
 const phMsg          = document.getElementById('ph-msg');
 
 const OVERPASS_QUERIES = {
-  tourist_attraction: `(
-    node["tourism"~"^(attraction|museum|zoo|aquarium|theme_park|viewpoint|gallery)$"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["tourism"~"^(attraction|museum|zoo|aquarium|theme_park|viewpoint|gallery)$"]["name"](around:${RADIUS_M},LAT,LNG);
-    node["historic"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["historic"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
   museum:         `(node["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG););`,
   park:           `(node["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG); way["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG););`,
   art_gallery:    `(node["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG););`,
