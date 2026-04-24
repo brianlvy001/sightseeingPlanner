@@ -10,7 +10,7 @@
 <body>
   <header>
     <h1>Nearby Sightseeing</h1>
-    <p class="subtitle">Top attractions within 8 miles of any address</p>
+    <p class="subtitle">Top-rated attractions within 8 miles of any address</p>
   </header>
 
   <main>
@@ -29,6 +29,10 @@
     </div>
   </main>
 
+  <!-- Attribution container required by Google Places API -->
+  <div id="attr" style="display:none"></div>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo&libraries=places"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
