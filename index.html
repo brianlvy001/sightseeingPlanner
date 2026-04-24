@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nearby Sightseeing</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=9" />
 </head>
 <body>
   <header>
@@ -14,53 +14,59 @@
   </header>
 
   <main>
-    <form id="search-form">
-      <input id="address-input" type="text" placeholder="Enter an address or city..." autocomplete="off" required />
-      <select id="type-select">
-        <option value="tourist_attraction">All Sightseeing</option>
-        <option value="museum">Museums</option>
-        <option value="park">Parks</option>
-        <option value="art_gallery">Art Galleries</option>
-        <option value="zoo">Zoos</option>
-        <option value="aquarium">Aquariums</option>
-        <option value="amusement_park">Amusement Parks</option>
-      </select>
-      <select id="map-source">
-        <option value="osm">OpenStreetMap</option>
-        <option value="google">Google Maps</option>
-      </select>
-      <button type="submit">Find Sights</button>
+    <form id="search-form" class="filter-card">
+      <div class="filter-group wide">
+        <label for="address-input">📍 Address</label>
+        <input id="address-input" type="text" placeholder="Enter an address or city..." autocomplete="off" required />
+      </div>
+      <div class="filter-group">
+        <label for="type-select">🏛️ Type</label>
+        <select id="type-select">
+          <option value="tourist_attraction">All Sightseeing</option>
+          <option value="museum">Museums</option>
+          <option value="park">Parks</option>
+          <option value="art_gallery">Art Galleries</option>
+          <option value="zoo">Zoos</option>
+          <option value="aquarium">Aquariums</option>
+          <option value="amusement_park">Amusement Parks</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="map-source">🗺️ Map Source</label>
+        <select id="map-source">
+          <option value="osm">OpenStreetMap</option>
+          <option value="google">Google Maps</option>
+        </select>
+      </div>
+      <div class="filter-group btn-group">
+        <label>&nbsp;</label>
+        <button type="submit">🔍 Find Sights</button>
+      </div>
     </form>
+
     <div id="status"></div>
 
-    <div id="content">
-      <aside id="places-panel">
-        <h2 id="panel-title">Top Sightseeing</h2>
-        <div id="places-list"></div>
-      </aside>
-      <div id="map-container">
-        <div id="map-placeholder">
-          <div class="ph-scene">
-            <span class="crane">🏗️</span>
-            <span class="gear g1">⚙️</span>
-            <span class="gear g2">⚙️</span>
-            <span class="gear g3">⚙️</span>
-          </div>
-          <p class="ph-title">Engineering in Progress</p>
-          <p class="ph-msg" id="ph-msg">Our map crew is standing by — search an address to deploy the map!</p>
-          <div class="ph-dots"><span></span><span></span><span></span></div>
+    <div id="map-container">
+      <div id="map-placeholder">
+        <div class="ph-scene">
+          <span class="crane">🏗️</span>
+          <span class="gear g1">⚙️</span>
+          <span class="gear g2">⚙️</span>
+          <span class="gear g3">⚙️</span>
         </div>
-        <div id="map"></div>
-        <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <p class="ph-title">Engineering in Progress</p>
+        <p class="ph-msg" id="ph-msg">Our map crew is standing by — search an address to deploy the map!</p>
+        <div class="ph-dots"><span></span><span></span><span></span></div>
       </div>
+      <div id="map"></div>
+      <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
   </main>
 
-  <!-- Required by Google Places API for attribution -->
   <div id="attr" style="display:none"></div>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo&libraries=places"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>
