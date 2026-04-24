@@ -5,10 +5,12 @@ const input          = document.getElementById('address-input');
 const typeSelect     = document.getElementById('type-select');
 const mapSource      = document.getElementById('map-source');
 const statusEl       = document.getElementById('status');
-const mapDiv         = document.getElementById('map');
-const gmapFrame      = document.getElementById('gmap');
-const mapPlaceholder = document.getElementById('map-placeholder');
-const phMsg          = document.getElementById('ph-msg');
+const mapDiv       = document.getElementById('map');
+const gmapFrame    = document.getElementById('gmap');
+const mapContainer = document.getElementById('map-container');
+const phLoading    = document.getElementById('ph-loading');
+const phError      = document.getElementById('ph-error');
+const phMsg        = document.getElementById('ph-msg');
 
 const OVERPASS_QUERIES = {
   museum:         `(node["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG););`,
@@ -32,7 +34,7 @@ form.addEventListener('submit', async (e) => {
   if (!address) return;
 
   setStatus('Locating address...');
-  showPlaceholder('🔭 Deploying map engineers to your location...');
+  showLoading();
   form.querySelector('button').disabled = true;
 
   try {
@@ -44,7 +46,7 @@ form.addEventListener('submit', async (e) => {
       : await fetchOsmPlaces(center, type);
 
     if (places.length === 0) {
-      showPlaceholder('😕 No places found nearby.\nTry a different address or type!');
+      showError('😕 No places found nearby.\nTry a different address or type!');
       setStatus('No places found within 8 miles. Try a different address or type.', true);
       return;
     }
@@ -56,7 +58,7 @@ form.addEventListener('submit', async (e) => {
     setStatus(`Found ${places.length} place${places.length > 1 ? 's' : ''}`);
     source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
   } catch (err) {
-    showPlaceholder('🚨 Something went wrong.\n' + err.message);
+    showError(err.message);
     setStatus(err.message, true);
   } finally {
     form.querySelector('button').disabled = false;
@@ -126,7 +128,7 @@ function osmScore(p) {
 
 // ── Map renderers ─────────────────────────────────────────────────────────────
 function renderLeaflet(center, places) {
-  hidePlaceholder();
+  hidePlaceholders();
   gmapFrame.style.display = 'none';
   mapDiv.style.display    = 'block';
 
@@ -153,7 +155,7 @@ function renderLeaflet(center, places) {
 }
 
 function renderGoogleMap(center, places) {
-  hidePlaceholder();
+  hidePlaceholders();
   if (leafletMap) { leafletMap.remove(); leafletMap = null; }
   mapDiv.style.display    = 'none';
   gmapFrame.style.display = 'block';
@@ -161,16 +163,27 @@ function renderGoogleMap(center, places) {
   gmapFrame.src = `https://www.google.com/maps?q=${encodeURIComponent(q)}&ll=${center.lat},${center.lng}&z=13&output=embed`;
 }
 
-// ── Placeholder ───────────────────────────────────────────────────────────────
-function showPlaceholder(msg) {
-  mapDiv.style.display        = 'none';
-  gmapFrame.style.display     = 'none';
-  phMsg.textContent           = msg;
-  mapPlaceholder.classList.remove('hidden');
+// ── Placeholder states ────────────────────────────────────────────────────────
+function showLoading() {
+  mapContainer.classList.remove('hidden');
+  mapDiv.style.display    = 'none';
+  gmapFrame.style.display = 'none';
+  phLoading.classList.remove('hidden');
+  phError.classList.add('hidden');
 }
 
-function hidePlaceholder() {
-  mapPlaceholder.classList.add('hidden');
+function showError(msg) {
+  mapContainer.classList.remove('hidden');
+  mapDiv.style.display    = 'none';
+  gmapFrame.style.display = 'none';
+  phMsg.textContent       = msg;
+  phError.classList.remove('hidden');
+  phLoading.classList.add('hidden');
+}
+
+function hidePlaceholders() {
+  phLoading.classList.add('hidden');
+  phError.classList.add('hidden');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

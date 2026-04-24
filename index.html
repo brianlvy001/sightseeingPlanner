@@ -45,8 +45,23 @@
 
     <div id="status"></div>
 
-    <div id="map-container">
-      <div id="map-placeholder">
+    <div id="map-container" class="hidden">
+
+      <!-- Loading state -->
+      <div id="ph-loading" class="placeholder hidden">
+        <div class="pin-wrapper">
+          <span class="pin">📍</span>
+          <div class="ripple r1"></div>
+          <div class="ripple r2"></div>
+          <div class="ripple r3"></div>
+        </div>
+        <p class="ph-title loading-title">Exploring your area...</p>
+        <p class="ph-msg">Hold tight! We're scouting the best spots near you.</p>
+        <div class="ph-dots"><span></span><span></span><span></span></div>
+      </div>
+
+      <!-- Error state -->
+      <div id="ph-error" class="placeholder hidden">
         <div class="ph-scene">
           <span class="crane">🏗️</span>
           <span class="gear g1">⚙️</span>
@@ -54,9 +69,9 @@
           <span class="gear g3">⚙️</span>
         </div>
         <p class="ph-title">Engineering in Progress</p>
-        <p class="ph-msg" id="ph-msg">Our map crew is standing by — search an address to deploy the map!</p>
-        <div class="ph-dots"><span></span><span></span><span></span></div>
+        <p class="ph-msg" id="ph-msg">Something went wrong. Our engineers are on it!</p>
       </div>
+
       <div id="map"></div>
       <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
@@ -66,6 +81,6 @@
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo&libraries=places"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=10"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>
