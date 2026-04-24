@@ -1,4 +1,7 @@
+const FOURSQUARE_API_KEY = 'YOUR_FOURSQUARE_API_KEY';
 const RADIUS_M = 12874; // 8 miles
+// Foursquare category IDs: Arts & Entertainment + Landmarks & Outdoors
+const CATEGORIES = '10000,16000';
 
 const form       = document.getElementById('search-form');
 const input      = document.getElementById('address-input');
@@ -22,7 +25,7 @@ form.addEventListener('submit', async (e) => {
   try {
     const { lat, lng } = await geocode(address);
     setStatus('Fetching nearby attractions...');
-    const places = await nearbySearch(lat, lng);
+    const places = await fetchPlaces(lat, lng);
 
     if (places.length === 0) {
       setStatus('No rated attractions found within 8 miles. Try a different address.', true);
@@ -31,8 +34,13 @@ form.addEventListener('submit', async (e) => {
 
     const top5 = places
       .filter(p => p.rating != null)
-      .sort((a, b) => b.rating - a.rating || (b.user_ratings_total || 0) - (a.user_ratings_total || 0))
+      .sort((a, b) => b.rating - a.rating)
       .slice(0, 5);
+
+    if (top5.length === 0) {
+      setStatus('No ratings available for nearby attractions. Try a different address.', true);
+      return;
+    }
 
     setStatus('');
     renderPlaces(top5);
@@ -45,45 +53,42 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-function geocode(address) {
-  return new Promise((resolve, reject) => {
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address }, (results, status) => {
-      if (status === 'OK') {
-        const loc = results[0].geometry.location;
-        resolve({ lat: loc.lat(), lng: loc.lng() });
-      } else {
-        reject(new Error('Address not found. Please try a different address.'));
-      }
-    });
-  });
+async function geocode(address) {
+  const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
+  const res  = await fetch(url);
+  const data = await res.json();
+  if (!data.length) throw new Error('Address not found. Please try a different address.');
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
-function nearbySearch(lat, lng) {
-  return new Promise((resolve, reject) => {
-    const service = new google.maps.places.PlacesService(document.getElementById('attr'));
-    service.nearbySearch(
-      { location: { lat, lng }, radius: RADIUS_M, type: 'tourist_attraction' },
-      (places, status) => {
-        const S = google.maps.places.PlacesServiceStatus;
-        if (status === S.REQUEST_DENIED) {
-          reject(new Error('Google Places API denied — please enable billing on your Google Cloud project at console.cloud.google.com/billing'));
-        } else if (status === S.OK) {
-          resolve(places);
-        } else {
-          resolve([]);
-        }
-      }
-    );
+async function fetchPlaces(lat, lng) {
+  const params = new URLSearchParams({
+    ll: `${lat},${lng}`,
+    radius: RADIUS_M,
+    categories: CATEGORIES,
+    limit: 50,
+    sort: 'RATING',
+    fields: 'name,rating,location,geocodes,categories',
   });
+  const res = await fetch(`https://api.foursquare.com/v3/places/search?${params}`, {
+    headers: { Authorization: FOURSQUARE_API_KEY },
+  });
+  if (!res.ok) throw new Error(`Foursquare API error (${res.status}) — check your API key.`);
+  const data = await res.json();
+  return data.results || [];
 }
 
 function renderPlaces(places) {
   placesList.innerHTML = places.map((p, i) => {
-    const badge    = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const stars    = renderStars(p.rating);
-    const count    = p.user_ratings_total ? `(${p.user_ratings_total.toLocaleString()})` : '';
-    const mapsUrl  = `https://www.google.com/maps/place/?q=place_id:${p.place_id}`;
+    const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    // Foursquare ratings are 0–10; convert to 0–5 for star display
+    const stars5  = p.rating / 2;
+    const stars   = renderStars(stars5);
+    const addr    = [p.location?.address, p.location?.locality].filter(Boolean).join(', ');
+    const cat     = p.categories?.[0]?.name || 'Attraction';
+    const lat     = p.geocodes?.main?.latitude;
+    const lng     = p.geocodes?.main?.longitude;
+    const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(p.name)}+${lat},${lng}`;
 
     return `<div class="place-card" data-index="${i}">
       <div class="rank-badge ${badge}">${i + 1}</div>
@@ -91,10 +96,10 @@ function renderPlaces(places) {
         <div class="place-name">${escHtml(p.name)}</div>
         <div class="place-rating">
           <span class="stars">${stars}</span>
-          <span class="rating-num">${p.rating.toFixed(1)}</span>
-          <span class="rating-count">${count}</span>
+          <span class="rating-num">${p.rating.toFixed(1)}<span class="rating-scale">/10</span></span>
         </div>
-        ${p.vicinity ? `<div class="place-address">${escHtml(p.vicinity)}</div>` : ''}
+        <div class="place-type">${escHtml(cat)}</div>
+        ${addr ? `<div class="place-address">${escHtml(addr)}</div>` : ''}
         <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
       </div>
     </div>`;
@@ -121,11 +126,11 @@ function renderMap(centerLat, centerLng, places) {
   }).addTo(leafletMap);
 
   places.forEach((p, i) => {
-    const lat = p.geometry.location.lat();
-    const lng = p.geometry.location.lng();
+    const lat = p.geocodes.main.latitude;
+    const lng = p.geocodes.main.longitude;
     const marker = L.marker([lat, lng])
       .addTo(leafletMap)
-      .bindPopup(`<strong>${escHtml(p.name)}</strong><br>⭐ ${p.rating}`);
+      .bindPopup(`<strong>${escHtml(p.name)}</strong><br>⭐ ${p.rating}/10`);
     marker.on('click', () => {
       placesList.querySelectorAll('.place-card').forEach((c, j) => c.classList.toggle('active', j === i));
     });

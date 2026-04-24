@@ -179,6 +179,18 @@ button[type="submit"]:disabled { background: #999; cursor: not-allowed; }
   color: #999;
 }
 
+.place-type {
+  font-size: 0.72rem;
+  color: #888;
+  margin-top: 0.15rem;
+}
+
+.rating-scale {
+  font-size: 0.7rem;
+  color: #aaa;
+  font-weight: 400;
+}
+
 .place-address {
   font-size: 0.75rem;
   color: #888;
