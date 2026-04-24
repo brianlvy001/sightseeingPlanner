@@ -28,35 +28,36 @@ function locate() {
 
 function search(lat, lng) {
   setStatus('Searching for sightseeing places nearby...');
-  const service = new google.maps.places.PlacesService(document.createElement('div'));
+  const service = new google.maps.places.PlacesService(document.getElementById('attr'));
 
   const allPlaces = [];
+  const statuses = new Set();
   let pending = TYPES.length;
 
   TYPES.forEach(type => {
     service.nearbySearch(
-      {
-        location: { lat, lng },
-        radius: RADIUS_METERS,
-        type,
-      },
+      { location: { lat, lng }, radius: RADIUS_METERS, type },
       (places, searchStatus) => {
+        statuses.add(searchStatus);
         if (searchStatus === google.maps.places.PlacesServiceStatus.OK && places) {
           places.forEach(p => {
-            if (!allPlaces.find(x => x.place_id === p.place_id)) {
-              allPlaces.push(p);
-            }
+            if (!allPlaces.find(x => x.place_id === p.place_id)) allPlaces.push(p);
           });
         }
         pending--;
-        if (pending === 0) renderResults(allPlaces);
+        if (pending === 0) renderResults(allPlaces, statuses);
       }
     );
   });
 }
 
-function renderResults(places) {
+function renderResults(places, statuses) {
   btn.disabled = false;
+
+  if (statuses.has(google.maps.places.PlacesServiceStatus.REQUEST_DENIED)) {
+    showError('API request denied — check that the Places API is enabled and billing is active on your Google Cloud project.');
+    return;
+  }
 
   const rated = places
     .filter(p => p.rating != null)
