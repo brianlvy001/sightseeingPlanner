@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nearby Sightseeing</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=4" />
+  <link rel="stylesheet" href="style.css?v=5" />
 </head>
 <body>
   <header>
@@ -17,13 +17,17 @@
     <form id="search-form">
       <input id="address-input" type="text" placeholder="Enter an address or city..." autocomplete="off" required />
       <select id="type-select">
-        <option value="all">All Types</option>
+        <option value="tourist_attraction">All Sightseeing</option>
         <option value="museum">Museums</option>
         <option value="park">Parks</option>
-        <option value="historic">Historic Sites</option>
-        <option value="gallery">Art Galleries</option>
-        <option value="zoo">Zoos &amp; Aquariums</option>
-        <option value="viewpoint">Viewpoints</option>
+        <option value="art_gallery">Art Galleries</option>
+        <option value="zoo">Zoos</option>
+        <option value="aquarium">Aquariums</option>
+        <option value="amusement_park">Amusement Parks</option>
+      </select>
+      <select id="map-source">
+        <option value="osm">OpenStreetMap</option>
+        <option value="google">Google Maps</option>
       </select>
       <button type="submit">Find Sights</button>
     </form>
@@ -34,11 +38,18 @@
         <h2 id="panel-title">Top Sightseeing</h2>
         <div id="places-list"></div>
       </aside>
-      <div id="map"></div>
+      <div id="map-container">
+        <div id="map"></div>
+        <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+      </div>
     </div>
   </main>
 
+  <!-- Required by Google Places API for attribution -->
+  <div id="attr" style="display:none"></div>
+
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo&libraries=places"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

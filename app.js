@@ -3,57 +3,28 @@ const RADIUS_M = 12874; // 8 miles
 const form        = document.getElementById('search-form');
 const input       = document.getElementById('address-input');
 const typeSelect  = document.getElementById('type-select');
+const mapSource   = document.getElementById('map-source');
 const statusEl    = document.getElementById('status');
 const content     = document.getElementById('content');
 const placesList  = document.getElementById('places-list');
 const panelTitle  = document.getElementById('panel-title');
 const mapDiv      = document.getElementById('map');
+const gmapFrame   = document.getElementById('gmap');
 
 const TYPE_LABELS = {
-  all:       'Top Sightseeing',
-  museum:    'Top Museums',
-  park:      'Top Parks',
-  historic:  'Top Historic Sites',
-  gallery:   'Top Art Galleries',
-  zoo:       'Top Zoos & Aquariums',
-  viewpoint: 'Top Viewpoints',
-};
-
-const TYPE_QUERIES = {
-  all: `(
-    node["tourism"~"^(attraction|museum|zoo|aquarium|theme_park|viewpoint|gallery|artwork)$"](around:${RADIUS_M},LAT,LNG);
-    way["tourism"~"^(attraction|museum|zoo|aquarium|theme_park|viewpoint|gallery|artwork)$"](around:${RADIUS_M},LAT,LNG);
-    node["historic"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["historic"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
-  museum: `(
-    node["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
-  park: `(
-    node["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
-  historic: `(
-    node["historic"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["historic"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
-  gallery: `(
-    node["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
-  zoo: `(
-    node["tourism"~"^(zoo|aquarium)$"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["tourism"~"^(zoo|aquarium)$"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
-  viewpoint: `(
-    node["tourism"="viewpoint"]["name"](around:${RADIUS_M},LAT,LNG);
-    way["tourism"="viewpoint"]["name"](around:${RADIUS_M},LAT,LNG);
-  );`,
+  tourist_attraction: 'Top Sightseeing',
+  museum:             'Top Museums',
+  park:               'Top Parks',
+  art_gallery:        'Top Art Galleries',
+  zoo:                'Top Zoos',
+  aquarium:           'Top Aquariums',
+  amusement_park:     'Top Amusement Parks',
 };
 
 let leafletMap = null;
 let markers    = [];
+let lastPlaces = [];
+let lastCenter = null;
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -66,23 +37,33 @@ form.addEventListener('submit', async (e) => {
   form.querySelector('button').disabled = true;
 
   try {
-    const { lat, lng } = await geocode(address);
-    setStatus('Finding nearby places...');
-    const places = await fetchPlaces(lat, lng, type);
+    const center = await geocode(address);
+    setStatus('Fetching nearby places...');
+    const places = await nearbySearch(center, type);
 
     if (places.length === 0) {
-      setStatus(`No ${TYPE_LABELS[type].toLowerCase()} found within 8 miles. Try a different address or type.`, true);
+      setStatus(`No ${TYPE_LABELS[type].toLowerCase()} found within 8 miles. Try a different address.`, true);
       return;
     }
 
-    const top5 = rankPlaces(places).slice(0, 5);
-    const maxScore = top5[0]._score;
+    const top5 = places
+      .filter(p => p.rating != null)
+      .sort((a, b) => b.rating - a.rating || (b.user_ratings_total || 0) - (a.user_ratings_total || 0))
+      .slice(0, 5);
+
+    if (top5.length === 0) {
+      setStatus('Places found but none have ratings yet. Try a different type or address.', true);
+      return;
+    }
+
+    lastPlaces = top5;
+    lastCenter = center;
 
     setStatus('');
     panelTitle.textContent = TYPE_LABELS[type];
-    renderPlaces(top5, maxScore);
+    renderPlaces(top5);
     content.classList.add('visible');
-    renderMap(lat, lng, top5);
+    renderMap(center, top5, mapSource.value);
   } catch (err) {
     setStatus(err.message, true);
   } finally {
@@ -90,82 +71,65 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
-async function geocode(address) {
-  const url  = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
-  const res  = await fetch(url);
-  const data = await res.json();
-  if (!data.length) throw new Error('Address not found. Please try a different address.');
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-}
+// Switch map source without re-searching
+mapSource.addEventListener('change', () => {
+  if (lastPlaces.length && lastCenter) {
+    renderMap(lastCenter, lastPlaces, mapSource.value);
+  }
+});
 
-async function fetchPlaces(lat, lng, type) {
-  const body  = TYPE_QUERIES[type].replace(/LAT/g, lat).replace(/LNG/g, lng);
-  const query = `[out:json][timeout:25];\n${body}\nout center 80;`;
-  const res   = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body:   'data=' + encodeURIComponent(query),
-  });
-  if (!res.ok) throw new Error('Failed to fetch places. Please try again.');
-  const data  = await res.json();
-  return data.elements.filter(el => {
-    const lat = el.lat ?? el.center?.lat;
-    const lng = el.lon ?? el.center?.lon;
-    return el.tags?.name && lat && lng;
+function geocode(address) {
+  return new Promise((resolve, reject) => {
+    new google.maps.Geocoder().geocode({ address }, (results, status) => {
+      if (status === 'OK') {
+        const loc = results[0].geometry.location;
+        resolve({ lat: loc.lat(), lng: loc.lng() });
+      } else {
+        reject(new Error('Address not found. Please try a different address.'));
+      }
+    });
   });
 }
 
-function rankPlaces(places) {
-  return places
-    .map(p => ({ ...p, _score: computeScore(p) }))
-    .sort((a, b) => b._score - a._score);
+function nearbySearch(center, type) {
+  return new Promise((resolve, reject) => {
+    const service = new google.maps.places.PlacesService(document.getElementById('attr'));
+    service.nearbySearch(
+      { location: center, radius: RADIUS_M, type },
+      (places, status) => {
+        const S = google.maps.places.PlacesServiceStatus;
+        if (status === S.REQUEST_DENIED) {
+          reject(new Error('Google Places API denied — please enable billing at console.cloud.google.com/billing (free $200/month credit applies).'));
+        } else if (status === S.OK) {
+          resolve(places);
+        } else {
+          resolve([]);
+        }
+      }
+    );
+  });
 }
 
-function computeScore(p) {
-  const tags = p.tags;
-  let s = 0;
-  if (tags.wikipedia || tags.wikidata) s += 10;
-  const t = tags.tourism;
-  if (['attraction', 'museum', 'zoo', 'aquarium', 'theme_park'].includes(t)) s += 5;
-  else if (['viewpoint', 'gallery', 'artwork'].includes(t)) s += 3;
-  if (tags.historic) s += 4;
-  if (tags.website || tags['contact:website']) s += 2;
-  if (tags.phone || tags['contact:phone']) s += 1;
-  s += Math.min(Object.keys(tags).length, 20) * 0.2;
-  return s;
-}
-
-function renderPlaces(places, maxScore) {
+function renderPlaces(places) {
   placesList.innerHTML = places.map((p, i) => {
     const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const stars   = renderStars((p._score / maxScore) * 5);
-    const score   = ((p._score / maxScore) * 5).toFixed(1);
-    const lat     = p.lat ?? p.center.lat;
-    const lng     = p.lon ?? p.center.lon;
-    const type    = formatType(p.tags);
-    const addr    = p.tags['addr:street']
-      ? `${p.tags['addr:housenumber'] || ''} ${p.tags['addr:street']}`.trim()
-      : '';
-    const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-    const wikiUrl = p.tags.wikipedia
-      ? `https://en.wikipedia.org/wiki/${encodeURIComponent(p.tags.wikipedia.replace(/^en:/, ''))}`
-      : null;
+    const stars   = renderStars(p.rating);
+    const count   = p.user_ratings_total ? `(${p.user_ratings_total.toLocaleString()})` : '';
+    const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${p.place_id}`;
 
     return `<div class="place-card" data-index="${i}">
-      <div class="place-info">
-        <div class="card-top">
-          <div class="rank-badge ${badge}">${i + 1}</div>
-          <div class="place-name">${escHtml(p.tags.name)}</div>
-        </div>
-        <div class="place-type">${escHtml(type)}</div>
-        <div class="place-rating">
-          <span class="stars">${stars}</span>
-          <span class="rating-num">${score}</span>
-        </div>
-        ${addr ? `<div class="place-address">${escHtml(addr)}</div>` : ''}
-        <div class="place-links">
-          <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps</a>
-          ${wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>` : ''}
-        </div>
+      <div class="card-top">
+        <div class="rank-badge ${badge}">${i + 1}</div>
+        <div class="place-name">${escHtml(p.name)}</div>
+      </div>
+      <div class="place-rating">
+        <span class="stars">${stars}</span>
+        <span class="rating-num">${p.rating.toFixed(1)}</span>
+        <span class="rating-count">${count}</span>
+      </div>
+      ${p.vicinity ? `<div class="place-address">${escHtml(p.vicinity)}</div>` : ''}
+      <div class="place-links">
+        <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
       </div>
     </div>`;
   }).join('');
@@ -175,27 +139,42 @@ function renderPlaces(places, maxScore) {
       const i = parseInt(card.dataset.index);
       placesList.querySelectorAll('.place-card').forEach(c => c.classList.remove('active'));
       card.classList.add('active');
-      if (markers[i]) { markers[i].openPopup(); leafletMap.panTo(markers[i].getLatLng()); }
+      if (markers[i]) { markers[i].openPopup(); leafletMap?.panTo(markers[i].getLatLng()); }
     });
   });
 }
 
-function renderMap(centerLat, centerLng, places) {
+function renderMap(center, places, source) {
+  if (source === 'osm') {
+    gmapFrame.style.display = 'none';
+    mapDiv.style.display    = 'block';
+    renderLeaflet(center, places);
+  } else {
+    mapDiv.style.display    = 'none';
+    gmapFrame.style.display = 'block';
+    if (leafletMap) { leafletMap.remove(); leafletMap = null; markers = []; }
+    const q   = places.map(p => p.name).join(' OR ');
+    const url = `https://www.google.com/maps?q=${encodeURIComponent(q)}&ll=${center.lat},${center.lng}&z=13&output=embed`;
+    gmapFrame.src = url;
+  }
+}
+
+function renderLeaflet(center, places) {
   if (leafletMap) { leafletMap.remove(); leafletMap = null; }
   markers = [];
 
-  leafletMap = L.map(mapDiv).setView([centerLat, centerLng], 13);
+  leafletMap = L.map(mapDiv).setView([center.lat, center.lng], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19,
   }).addTo(leafletMap);
 
   places.forEach((p, i) => {
-    const lat = p.lat ?? p.center.lat;
-    const lng = p.lon ?? p.center.lon;
+    const lat    = p.geometry.location.lat();
+    const lng    = p.geometry.location.lng();
     const marker = L.marker([lat, lng])
       .addTo(leafletMap)
-      .bindPopup(`<strong>${escHtml(p.tags.name)}</strong><br><small>${escHtml(formatType(p.tags))}</small>`);
+      .bindPopup(`<strong>${escHtml(p.name)}</strong><br>⭐ ${p.rating}`);
     marker.on('click', () => {
       placesList.querySelectorAll('.place-card').forEach((c, j) => c.classList.toggle('active', j === i));
     });
@@ -207,22 +186,16 @@ function renderMap(centerLat, centerLng, places) {
   setTimeout(() => leafletMap.invalidateSize(), 50);
 }
 
-function formatType(tags) {
-  const raw = tags.tourism || tags.historic || tags.leisure || 'attraction';
-  return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
 function renderStars(rating) {
-  const clamped = Math.min(5, Math.max(0, rating));
-  const full    = Math.floor(clamped);
-  const half    = (clamped - full) >= 0.5 ? 1 : 0;
-  const empty   = 5 - full - half;
+  const full  = Math.floor(rating);
+  const half  = (rating - full) >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
   return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
 }
 
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg;
-  statusEl.className = isError ? 'error' : '';
+  statusEl.className   = isError ? 'error' : '';
 }
 
 function escHtml(str) {
