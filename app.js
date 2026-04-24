@@ -52,7 +52,7 @@ async function geocode(address) {
 async function fetchWikiPlaces(lat, lng) {
   // Step 1: find notable places near location via Wikipedia GeoSearch
   const geoUrl = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch` +
-    `&gscoord=${lat}|${lng}&gsradius=${RADIUS_M}&gslimit=50&format=json&origin=*`;
+    `&gscoord=${lat}|${lng}&gsradius=10000&gslimit=50&format=json&origin=*`;
   const geoRes  = await fetch(geoUrl);
   const geoData = await geoRes.json();
   const hits    = geoData.query?.geosearch || [];
