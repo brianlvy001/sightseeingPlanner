@@ -73,7 +73,10 @@ async function fetchPlaces(lat, lng) {
   const res = await fetch(`https://api.foursquare.com/v3/places/search?${params}`, {
     headers: { Authorization: FOURSQUARE_API_KEY },
   });
-  if (!res.ok) throw new Error(`Foursquare API error (${res.status}) — check your API key.`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Foursquare error ${res.status}: ${body || 'no details'}`);
+  }
   const data = await res.json();
   return data.results || [];
 }
