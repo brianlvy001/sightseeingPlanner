@@ -1,7 +1,4 @@
-const FOURSQUARE_API_KEY = 'fsq3ZVR6zj29sgktkNn6JFLB0wOQuKztJagy2IsYWMT4YqY=';
 const RADIUS_M = 12874; // 8 miles
-// Foursquare category IDs: Arts & Entertainment + Landmarks & Outdoors
-const CATEGORIES = '10000,16000';
 
 const form       = document.getElementById('search-form');
 const input      = document.getElementById('address-input');
@@ -24,26 +21,17 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const { lat, lng } = await geocode(address);
-    setStatus('Fetching nearby attractions...');
-    const places = await fetchPlaces(lat, lng);
+    setStatus('Finding nearby attractions...');
+    const places = await fetchWikiPlaces(lat, lng);
 
     if (places.length === 0) {
-      setStatus('No rated attractions found within 8 miles. Try a different address.', true);
+      setStatus('No notable sightseeing places found within 8 miles. Try a different address.', true);
       return;
     }
 
-    const top5 = places
-      .filter(p => p.rating != null)
-      .sort((a, b) => b.rating - a.rating)
-      .slice(0, 5);
-
-    if (top5.length === 0) {
-      setStatus('No ratings available for nearby attractions. Try a different address.', true);
-      return;
-    }
-
+    const top5 = places.slice(0, 5);
     setStatus('');
-    renderPlaces(top5);
+    renderPlaces(top5, places[0].size);
     content.classList.add('visible');
     renderMap(lat, lng, top5);
   } catch (err) {
@@ -61,49 +49,61 @@ async function geocode(address) {
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
-async function fetchPlaces(lat, lng) {
-  const params = new URLSearchParams({
-    ll: `${lat},${lng}`,
-    radius: RADIUS_M,
-    categories: CATEGORIES,
-    limit: 50,
-    sort: 'RATING',
-    fields: 'name,rating,location,geocodes,categories',
-  });
-  const res = await fetch(`https://api.foursquare.com/v3/places/search?${params}`, {
-    headers: { Authorization: FOURSQUARE_API_KEY },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Foursquare error ${res.status}: ${body || 'no details'}`);
-  }
-  const data = await res.json();
-  return data.results || [];
+async function fetchWikiPlaces(lat, lng) {
+  // Step 1: find notable places near location via Wikipedia GeoSearch
+  const geoUrl = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch` +
+    `&gscoord=${lat}|${lng}&gsradius=${RADIUS_M}&gslimit=50&format=json&origin=*`;
+  const geoRes  = await fetch(geoUrl);
+  const geoData = await geoRes.json();
+  const hits    = geoData.query?.geosearch || [];
+  if (!hits.length) return [];
+
+  // Step 2: fetch article sizes + thumbnails in one batch call
+  const ids      = hits.map(p => p.pageid).slice(0, 50).join('|');
+  const detUrl   = `https://en.wikipedia.org/w/api.php?action=query&pageids=${ids}` +
+    `&prop=revisions|pageimages&rvprop=size&pithumbsize=120&format=json&origin=*`;
+  const detRes   = await fetch(detUrl);
+  const detData  = await detRes.json();
+  const pages    = detData.query?.pages || {};
+
+  // Combine and sort by article size (proxy for notability)
+  return hits
+    .map(p => {
+      const page  = pages[p.pageid] || {};
+      const size  = page.revisions?.[0]?.size || 0;
+      const thumb = page.thumbnail?.source || null;
+      return { ...p, size, thumb };
+    })
+    .filter(p => p.size > 2000)          // skip stubs
+    .sort((a, b) => b.size - a.size);
 }
 
-function renderPlaces(places) {
+function renderPlaces(places, maxSize) {
   placesList.innerHTML = places.map((p, i) => {
-    const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    // Foursquare ratings are 0–10; convert to 0–5 for star display
-    const stars5  = p.rating / 2;
-    const stars   = renderStars(stars5);
-    const addr    = [p.location?.address, p.location?.locality].filter(Boolean).join(', ');
-    const cat     = p.categories?.[0]?.name || 'Attraction';
-    const lat     = p.geocodes?.main?.latitude;
-    const lng     = p.geocodes?.main?.longitude;
-    const mapsUrl = `https://www.google.com/maps?q=${encodeURIComponent(p.name)}+${lat},${lng}`;
+    const badge    = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const stars    = sizeToStars(p.size, maxSize);
+    const starStr  = renderStars(stars);
+    const distMi   = (p.dist / 1609.34).toFixed(1);
+    const wikiUrl  = `https://en.wikipedia.org/wiki/${encodeURIComponent(p.title)}`;
+    const mapsUrl  = `https://www.google.com/maps?q=${p.lat},${p.lon}`;
+    const photoEl  = p.thumb
+      ? `<img class="place-photo" src="${p.thumb}" alt="${escHtml(p.title)}" />`
+      : `<div class="place-photo-placeholder">🏛️</div>`;
 
     return `<div class="place-card" data-index="${i}">
-      <div class="rank-badge ${badge}">${i + 1}</div>
+      ${photoEl}
       <div class="place-info">
-        <div class="place-name">${escHtml(p.name)}</div>
+        <div class="rank-badge ${badge}">${i + 1}</div>
+        <div class="place-name">${escHtml(p.title)}</div>
         <div class="place-rating">
-          <span class="stars">${stars}</span>
-          <span class="rating-num">${p.rating.toFixed(1)}<span class="rating-scale">/10</span></span>
+          <span class="stars">${starStr}</span>
+          <span class="rating-num">${stars.toFixed(1)}</span>
         </div>
-        <div class="place-type">${escHtml(cat)}</div>
-        ${addr ? `<div class="place-address">${escHtml(addr)}</div>` : ''}
-        <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
+        <div class="place-dist">${distMi} mi away</div>
+        <div class="place-links">
+          <a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>
+          <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps</a>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -129,11 +129,9 @@ function renderMap(centerLat, centerLng, places) {
   }).addTo(leafletMap);
 
   places.forEach((p, i) => {
-    const lat = p.geocodes.main.latitude;
-    const lng = p.geocodes.main.longitude;
-    const marker = L.marker([lat, lng])
+    const marker = L.marker([p.lat, p.lon])
       .addTo(leafletMap)
-      .bindPopup(`<strong>${escHtml(p.name)}</strong><br>⭐ ${p.rating}/10`);
+      .bindPopup(`<strong>${escHtml(p.title)}</strong>`);
     marker.on('click', () => {
       placesList.querySelectorAll('.place-card').forEach((c, j) => c.classList.toggle('active', j === i));
     });
@@ -143,6 +141,10 @@ function renderMap(centerLat, centerLng, places) {
   const bounds = L.latLngBounds(markers.map(m => m.getLatLng()));
   leafletMap.fitBounds(bounds, { padding: [40, 40] });
   setTimeout(() => leafletMap.invalidateSize(), 50);
+}
+
+function sizeToStars(size, maxSize) {
+  return Math.max(1, Math.min(5, (size / maxSize) * 5));
 }
 
 function renderStars(rating) {
