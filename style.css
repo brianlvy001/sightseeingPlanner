@@ -14,31 +14,32 @@ body {
 header {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   color: #fff;
-  padding: 2.5rem 1.5rem;
+  padding: 2rem 1.5rem;
   text-align: center;
 }
 
 header h1 {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
-  letter-spacing: -0.5px;
 }
 
 .subtitle {
-  margin-top: 0.5rem;
-  font-size: 0.95rem;
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
   opacity: 0.75;
 }
 
 main {
-  max-width: 800px;
-  margin: 2rem auto;
+  max-width: 1100px;
+  margin: 1.5rem auto;
   padding: 0 1rem;
 }
 
+/* ---- Search form ---- */
 #search-form {
   display: flex;
   gap: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 #address-input {
@@ -68,36 +69,121 @@ button[type="submit"] {
   transition: background 0.2s, transform 0.1s;
 }
 
-button[type="submit"]:hover {
-  background: #c73652;
-}
-
-button[type="submit"]:active {
-  transform: scale(0.97);
-}
+button[type="submit"]:hover  { background: #c73652; }
+button[type="submit"]:active { transform: scale(0.97); }
+button[type="submit"]:disabled { background: #999; cursor: not-allowed; }
 
 #status {
-  margin-top: 0.75rem;
-  font-size: 0.9rem;
-  color: #c0392b;
-  min-height: 1.25rem;
+  font-size: 0.88rem;
+  color: #555;
+  min-height: 1.2rem;
+  margin-bottom: 0.75rem;
 }
 
-#map-container {
+#status.error { color: #c0392b; }
+
+/* ---- Two-column layout ---- */
+#content {
   display: none;
-  margin-top: 1.5rem;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+#content.visible {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+}
+
+/* ---- Left panel ---- */
+#places-panel {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+#places-panel h2 {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: #0f3460;
+  padding: 0.75rem 1rem;
+}
+
+/* ---- Place cards ---- */
+.place-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.place-card:last-child { border-bottom: none; }
+.place-card:hover { background: #f8f9fb; }
+.place-card.active { background: #eef3fa; }
+
+.rank-badge {
+  flex-shrink: 0;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: #0f3460;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+
+.rank-badge.gold   { background: #f5a623; color: #1a1a2e; }
+.rank-badge.silver { background: #9e9e9e; }
+.rank-badge.bronze { background: #a1673a; }
+
+.place-info { flex: 1; min-width: 0; }
+
+.place-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.place-type {
+  font-size: 0.75rem;
+  color: #777;
+  margin-top: 0.2rem;
+  text-transform: capitalize;
+}
+
+.place-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: #e94560;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.place-link:hover { text-decoration: underline; }
+
+/* ---- Map ---- */
+#map {
+  height: 500px;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-#map-container.visible {
-  display: block;
-}
-
-#map-frame {
-  width: 100%;
-  height: 500px;
-  border: none;
-  display: block;
+/* ---- Mobile ---- */
+@media (max-width: 640px) {
+  #content.visible {
+    grid-template-columns: 1fr;
+  }
+  #map { height: 350px; }
 }

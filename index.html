@@ -4,31 +4,32 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nearby Sightseeing</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
     <h1>Nearby Sightseeing</h1>
-    <p class="subtitle">Find top-rated attractions near any address</p>
+    <p class="subtitle">Top attractions within 8 miles of any address</p>
   </header>
 
   <main>
     <form id="search-form">
-      <input
-        id="address-input"
-        type="text"
-        placeholder="Enter an address or city..."
-        autocomplete="off"
-        required
-      />
+      <input id="address-input" type="text" placeholder="Enter an address or city..." autocomplete="off" required />
       <button type="submit">Find Sights</button>
     </form>
     <div id="status"></div>
-    <div id="map-container">
-      <iframe id="map-frame" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+
+    <div id="content">
+      <aside id="places-panel">
+        <h2>Top Sightseeing</h2>
+        <div id="places-list"></div>
+      </aside>
+      <div id="map"></div>
     </div>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
