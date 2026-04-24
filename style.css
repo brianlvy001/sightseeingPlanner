@@ -31,8 +31,8 @@ header h1 {
 }
 
 main {
-  max-width: 560px;
-  margin: 3rem auto;
+  max-width: 800px;
+  margin: 2rem auto;
   padding: 0 1rem;
 }
 
@@ -77,9 +77,27 @@ button[type="submit"]:active {
 }
 
 #status {
-  margin-top: 1rem;
-  text-align: center;
+  margin-top: 0.75rem;
   font-size: 0.9rem;
   color: #c0392b;
   min-height: 1.25rem;
+}
+
+#map-container {
+  display: none;
+  margin-top: 1.5rem;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+#map-container.visible {
+  display: block;
+}
+
+#map-frame {
+  width: 100%;
+  height: 500px;
+  border: none;
+  display: block;
 }

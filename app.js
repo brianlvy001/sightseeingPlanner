@@ -1,6 +1,8 @@
-const form   = document.getElementById('search-form');
-const input  = document.getElementById('address-input');
-const status = document.getElementById('status');
+const form      = document.getElementById('search-form');
+const input     = document.getElementById('address-input');
+const status    = document.getElementById('status');
+const mapContainer = document.getElementById('map-container');
+const mapFrame  = document.getElementById('map-frame');
 
 form.addEventListener('submit', function (e) {
   e.preventDefault();
@@ -11,6 +13,8 @@ form.addEventListener('submit', function (e) {
   }
   status.textContent = '';
   const query = 'tourist attractions near ' + address;
-  const url   = 'https://www.google.com/maps/search/' + encodeURIComponent(query);
-  window.location.href = url;
+  const url = 'https://www.google.com/maps?q=' + encodeURIComponent(query) + '&output=embed';
+  mapFrame.src = url;
+  mapContainer.classList.add('visible');
+  mapContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
