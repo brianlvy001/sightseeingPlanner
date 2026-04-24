@@ -74,7 +74,7 @@ async function fetchWikiPlaces(lat, lng) {
       const thumb = page.thumbnail?.source || null;
       return { ...p, size, thumb };
     })
-    .filter(p => p.size > 2000)          // skip stubs
+    .filter(p => p.size > 0)
     .sort((a, b) => b.size - a.size);
 }
 
