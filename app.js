@@ -31,7 +31,7 @@ function search(lat, lng) {
   const service = new google.maps.places.PlacesService(document.getElementById('attr'));
 
   service.nearbySearch(
-    { location: { lat, lng }, radius: RADIUS_METERS, type: 'tourist_attraction' },
+    { location: { lat, lng }, radius: RADIUS_METERS, type: 'park' },
     (places, searchStatus) => renderResults(places, searchStatus)
   );
 }
