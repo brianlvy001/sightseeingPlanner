@@ -22,7 +22,7 @@ function locate() {
       showError('Could not get your location: ' + err.message);
       btn.disabled = false;
     },
-    { timeout: 10000 }
+    { timeout: 15000, enableHighAccuracy: false, maximumAge: 60000 }
   );
 }
 
