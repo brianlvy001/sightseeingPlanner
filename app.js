@@ -21,8 +21,10 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const { lat, lng } = await geocode(address);
-    setStatus('Finding nearby attractions...');
-    const places = await fetchWikiPlaces(lat, lng);
+    setStatus(`Geocoded: ${lat.toFixed(4)}, ${lng.toFixed(4)} — fetching Wikipedia places...`);
+    const raw = await fetchWikiPlaces(lat, lng);
+    setStatus(`Wikipedia returned ${raw.length} places — rendering...`);
+    const places = raw;
 
     if (places.length === 0) {
       setStatus('No notable sightseeing places found within 8 miles. Try a different address.', true);
