@@ -1,4 +1,4 @@
-const FOURSQUARE_API_KEY = 'YOUR_FOURSQUARE_API_KEY';
+const FOURSQUARE_API_KEY = 'X0IKXG35XLWK2IYB031NRHXY1BJPZIP1AGVWEXHZMPGYKMUG';
 const RADIUS_M = 12874; // 8 miles
 // Foursquare category IDs: Arts & Entertainment + Landmarks & Outdoors
 const CATEGORIES = '10000,16000';
