@@ -28,8 +28,7 @@ function locate() {
 
 function search(lat, lng) {
   setStatus('Searching for sightseeing places nearby...');
-  const map = new google.maps.Map(document.createElement('div'));
-  const service = new google.maps.places.PlacesService(map);
+  const service = new google.maps.places.PlacesService(document.createElement('div'));
 
   const allPlaces = [];
   let pending = TYPES.length;
