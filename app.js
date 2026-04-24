@@ -8,8 +8,10 @@ const statusEl    = document.getElementById('status');
 const content     = document.getElementById('content');
 const placesList  = document.getElementById('places-list');
 const panelTitle  = document.getElementById('panel-title');
-const mapDiv      = document.getElementById('map');
-const gmapFrame   = document.getElementById('gmap');
+const mapDiv        = document.getElementById('map');
+const gmapFrame     = document.getElementById('gmap');
+const mapPlaceholder = document.getElementById('map-placeholder');
+const phMsg         = document.getElementById('ph-msg');
 
 const TYPE_LABELS = {
   tourist_attraction: 'Top Sightseeing',
@@ -52,6 +54,7 @@ form.addEventListener('submit', async (e) => {
 
   setStatus('Locating address...');
   content.classList.remove('visible');
+  showPlaceholder('🔭 Deploying map engineers to your location...');
   form.querySelector('button').disabled = true;
 
   try {
@@ -114,7 +117,8 @@ function fetchGooglePlaces(center, type) {
       (places, status) => {
         const S = google.maps.places.PlacesServiceStatus;
         if (status === S.REQUEST_DENIED) {
-          reject(new Error('Google Places requires billing — enable it at console.cloud.google.com/billing (free $200/month credit applies). Or switch to OpenStreetMap.'));
+          showPlaceholder('🚨 Google Maps needs billing enabled.\nSwitch to OpenStreetMap — it works for free right now!');
+          reject(new Error('Google Places requires billing — enable it at console.cloud.google.com/billing. Or switch to OpenStreetMap mode above.'));
         } else if (status === S.OK) {
           resolve(
             places
@@ -235,7 +239,19 @@ function attachCardClicks() {
 }
 
 // ── Map renderers ─────────────────────────────────────────────────────────────
+function showPlaceholder(msg) {
+  mapDiv.style.display        = 'none';
+  gmapFrame.style.display     = 'none';
+  mapPlaceholder.classList.remove('hidden');
+  phMsg.textContent = msg;
+}
+
+function hidePlaceholder() {
+  mapPlaceholder.classList.add('hidden');
+}
+
 function renderLeaflet(center, places) {
+  hidePlaceholder();
   gmapFrame.style.display = 'none';
   mapDiv.style.display    = 'block';
 
@@ -269,6 +285,7 @@ function renderLeaflet(center, places) {
 }
 
 function renderGoogleMap(center, places) {
+  hidePlaceholder();
   mapDiv.style.display    = 'none';
   gmapFrame.style.display = 'block';
   if (leafletMap) { leafletMap.remove(); leafletMap = null; markers = []; }

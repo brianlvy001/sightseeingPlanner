@@ -39,6 +39,17 @@
         <div id="places-list"></div>
       </aside>
       <div id="map-container">
+        <div id="map-placeholder">
+          <div class="ph-scene">
+            <span class="crane">🏗️</span>
+            <span class="gear g1">⚙️</span>
+            <span class="gear g2">⚙️</span>
+            <span class="gear g3">⚙️</span>
+          </div>
+          <p class="ph-title">Engineering in Progress</p>
+          <p class="ph-msg" id="ph-msg">Our map crew is standing by — search an address to deploy the map!</p>
+          <div class="ph-dots"><span></span><span></span><span></span></div>
+        </div>
         <div id="map"></div>
         <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
@@ -50,6 +61,6 @@
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo&libraries=places"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
