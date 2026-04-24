@@ -31,15 +31,32 @@ header h1 {
 }
 
 main {
-  max-width: 720px;
-  margin: 2rem auto;
+  max-width: 560px;
+  margin: 3rem auto;
   padding: 0 1rem;
 }
 
-#find-btn {
-  display: block;
-  margin: 0 auto 1.5rem;
-  padding: 0.75rem 2rem;
+#search-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#address-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #dde1e7;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#address-input:focus {
+  border-color: #0f3460;
+}
+
+button[type="submit"] {
+  padding: 0.75rem 1.25rem;
   font-size: 1rem;
   font-weight: 600;
   color: #fff;
@@ -47,159 +64,22 @@ main {
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  white-space: nowrap;
   transition: background 0.2s, transform 0.1s;
 }
 
-#find-btn:hover {
+button[type="submit"]:hover {
   background: #c73652;
 }
 
-#find-btn:active {
+button[type="submit"]:active {
   transform: scale(0.97);
 }
 
-#find-btn:disabled {
-  background: #999;
-  cursor: not-allowed;
-}
-
 #status {
+  margin-top: 1rem;
   text-align: center;
   font-size: 0.9rem;
-  color: #555;
-  min-height: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-#status.error {
   color: #c0392b;
+  min-height: 1.25rem;
 }
-
-/* ---- Cards grid ---- */
-#results {
-  display: grid;
-  gap: 1rem;
-}
-
-.place-card {
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  transition: box-shadow 0.2s;
-}
-
-.place-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
-}
-
-.place-photo {
-  flex-shrink: 0;
-  width: 90px;
-  height: 90px;
-  border-radius: 8px;
-  object-fit: cover;
-  background: #e0e0e0;
-}
-
-.place-photo-placeholder {
-  flex-shrink: 0;
-  width: 90px;
-  height: 90px;
-  border-radius: 8px;
-  background: #e8ecf0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2rem;
-}
-
-.place-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.place-name {
-  font-size: 1rem;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.place-rating {
-  margin-top: 0.3rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-}
-
-.stars {
-  color: #f5a623;
-  letter-spacing: 1px;
-}
-
-.rating-count {
-  color: #777;
-  font-size: 0.8rem;
-}
-
-.place-address {
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
-  color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.place-status {
-  margin-top: 0.35rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.open {
-  color: #27ae60;
-}
-
-.closed {
-  color: #c0392b;
-}
-
-.place-link {
-  display: inline-block;
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  color: #0f3460;
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.place-link:hover {
-  text-decoration: underline;
-}
-
-.rank-badge {
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 50%;
-  background: #0f3460;
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-self: flex-start;
-  margin-top: 0.25rem;
-}
-
-.rank-badge.gold   { background: #f5a623; color: #1a1a2e; }
-.rank-badge.silver { background: #9e9e9e; }
-.rank-badge.bronze { background: #a1673a; }
