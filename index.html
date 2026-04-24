@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nearby Sightseeing</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
   <header>
@@ -16,13 +16,22 @@
   <main>
     <form id="search-form">
       <input id="address-input" type="text" placeholder="Enter an address or city..." autocomplete="off" required />
+      <select id="type-select">
+        <option value="all">All Types</option>
+        <option value="museum">Museums</option>
+        <option value="park">Parks</option>
+        <option value="historic">Historic Sites</option>
+        <option value="gallery">Art Galleries</option>
+        <option value="zoo">Zoos &amp; Aquariums</option>
+        <option value="viewpoint">Viewpoints</option>
+      </select>
       <button type="submit">Find Sights</button>
     </form>
     <div id="status"></div>
 
     <div id="content">
       <aside id="places-panel">
-        <h2>Top Sightseeing</h2>
+        <h2 id="panel-title">Top Sightseeing</h2>
         <div id="places-list"></div>
       </aside>
       <div id="map"></div>
@@ -30,6 +39,6 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

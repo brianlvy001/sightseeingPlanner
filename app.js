@@ -1,11 +1,56 @@
 const RADIUS_M = 12874; // 8 miles
 
-const form       = document.getElementById('search-form');
-const input      = document.getElementById('address-input');
-const statusEl   = document.getElementById('status');
-const content    = document.getElementById('content');
-const placesList = document.getElementById('places-list');
-const mapDiv     = document.getElementById('map');
+const form        = document.getElementById('search-form');
+const input       = document.getElementById('address-input');
+const typeSelect  = document.getElementById('type-select');
+const statusEl    = document.getElementById('status');
+const content     = document.getElementById('content');
+const placesList  = document.getElementById('places-list');
+const panelTitle  = document.getElementById('panel-title');
+const mapDiv      = document.getElementById('map');
+
+const TYPE_LABELS = {
+  all:       'Top Sightseeing',
+  museum:    'Top Museums',
+  park:      'Top Parks',
+  historic:  'Top Historic Sites',
+  gallery:   'Top Art Galleries',
+  zoo:       'Top Zoos & Aquariums',
+  viewpoint: 'Top Viewpoints',
+};
+
+const TYPE_QUERIES = {
+  all: `(
+    node["tourism"~"^(attraction|museum|zoo|aquarium|theme_park|viewpoint|gallery|artwork)$"](around:${RADIUS_M},LAT,LNG);
+    way["tourism"~"^(attraction|museum|zoo|aquarium|theme_park|viewpoint|gallery|artwork)$"](around:${RADIUS_M},LAT,LNG);
+    node["historic"]["name"](around:${RADIUS_M},LAT,LNG);
+    way["historic"]["name"](around:${RADIUS_M},LAT,LNG);
+  );`,
+  museum: `(
+    node["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG);
+    way["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG);
+  );`,
+  park: `(
+    node["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG);
+    way["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG);
+  );`,
+  historic: `(
+    node["historic"]["name"](around:${RADIUS_M},LAT,LNG);
+    way["historic"]["name"](around:${RADIUS_M},LAT,LNG);
+  );`,
+  gallery: `(
+    node["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG);
+    way["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG);
+  );`,
+  zoo: `(
+    node["tourism"~"^(zoo|aquarium)$"]["name"](around:${RADIUS_M},LAT,LNG);
+    way["tourism"~"^(zoo|aquarium)$"]["name"](around:${RADIUS_M},LAT,LNG);
+  );`,
+  viewpoint: `(
+    node["tourism"="viewpoint"]["name"](around:${RADIUS_M},LAT,LNG);
+    way["tourism"="viewpoint"]["name"](around:${RADIUS_M},LAT,LNG);
+  );`,
+};
 
 let leafletMap = null;
 let markers    = [];
@@ -13,6 +58,7 @@ let markers    = [];
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const address = input.value.trim();
+  const type    = typeSelect.value;
   if (!address) return;
 
   setStatus('Locating address...');
@@ -21,19 +67,20 @@ form.addEventListener('submit', async (e) => {
 
   try {
     const { lat, lng } = await geocode(address);
-    setStatus(`Geocoded: ${lat.toFixed(4)}, ${lng.toFixed(4)} — fetching Wikipedia places...`);
-    const raw = await fetchWikiPlaces(lat, lng);
-    setStatus(`Wikipedia returned ${raw.length} places — rendering...`);
-    const places = raw;
+    setStatus('Finding nearby places...');
+    const places = await fetchPlaces(lat, lng, type);
 
     if (places.length === 0) {
-      setStatus('No notable sightseeing places found within 8 miles. Try a different address.', true);
+      setStatus(`No ${TYPE_LABELS[type].toLowerCase()} found within 8 miles. Try a different address or type.`, true);
       return;
     }
 
-    const top5 = places.slice(0, 5);
+    const top5 = rankPlaces(places).slice(0, 5);
+    const maxScore = top5[0]._score;
+
     setStatus('');
-    renderPlaces(top5, places[0].size);
+    panelTitle.textContent = TYPE_LABELS[type];
+    renderPlaces(top5, maxScore);
     content.classList.add('visible');
     renderMap(lat, lng, top5);
   } catch (err) {
@@ -44,67 +91,80 @@ form.addEventListener('submit', async (e) => {
 });
 
 async function geocode(address) {
-  const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
+  const url  = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
   const res  = await fetch(url);
   const data = await res.json();
   if (!data.length) throw new Error('Address not found. Please try a different address.');
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
-async function fetchWikiPlaces(lat, lng) {
-  // Step 1: find notable places near location via Wikipedia GeoSearch
-  const geoUrl = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch` +
-    `&gscoord=${lat}|${lng}&gsradius=10000&gslimit=50&format=json&origin=*`;
-  const geoRes  = await fetch(geoUrl);
-  const geoData = await geoRes.json();
-  const hits    = geoData.query?.geosearch || [];
-  if (!hits.length) return [];
-
-  // Step 2: fetch article sizes + thumbnails in one batch call
-  const ids      = hits.map(p => p.pageid).slice(0, 50).join('|');
-  const detUrl   = `https://en.wikipedia.org/w/api.php?action=query&pageids=${ids}` +
-    `&prop=revisions|pageimages&rvprop=size&pithumbsize=120&format=json&origin=*`;
-  const detRes   = await fetch(detUrl);
-  const detData  = await detRes.json();
-  const pages    = detData.query?.pages || {};
-
-  // Combine and sort by article size (proxy for notability)
-  return hits
-    .map(p => {
-      const page  = pages[p.pageid] || {};
-      const size  = page.revisions?.[0]?.size || 0;
-      const thumb = page.thumbnail?.source || null;
-      return { ...p, size, thumb };
-    })
-    .filter(p => p.size > 0)
-    .sort((a, b) => b.size - a.size);
+async function fetchPlaces(lat, lng, type) {
+  const body  = TYPE_QUERIES[type].replace(/LAT/g, lat).replace(/LNG/g, lng);
+  const query = `[out:json][timeout:25];\n${body}\nout center 80;`;
+  const res   = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    body:   'data=' + encodeURIComponent(query),
+  });
+  if (!res.ok) throw new Error('Failed to fetch places. Please try again.');
+  const data  = await res.json();
+  return data.elements.filter(el => {
+    const lat = el.lat ?? el.center?.lat;
+    const lng = el.lon ?? el.center?.lon;
+    return el.tags?.name && lat && lng;
+  });
 }
 
-function renderPlaces(places, maxSize) {
+function rankPlaces(places) {
+  return places
+    .map(p => ({ ...p, _score: computeScore(p) }))
+    .sort((a, b) => b._score - a._score);
+}
+
+function computeScore(p) {
+  const tags = p.tags;
+  let s = 0;
+  if (tags.wikipedia || tags.wikidata) s += 10;
+  const t = tags.tourism;
+  if (['attraction', 'museum', 'zoo', 'aquarium', 'theme_park'].includes(t)) s += 5;
+  else if (['viewpoint', 'gallery', 'artwork'].includes(t)) s += 3;
+  if (tags.historic) s += 4;
+  if (tags.website || tags['contact:website']) s += 2;
+  if (tags.phone || tags['contact:phone']) s += 1;
+  s += Math.min(Object.keys(tags).length, 20) * 0.2;
+  return s;
+}
+
+function renderPlaces(places, maxScore) {
   placesList.innerHTML = places.map((p, i) => {
-    const badge    = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const stars    = sizeToStars(p.size, maxSize);
-    const starStr  = renderStars(stars);
-    const distMi   = (p.dist / 1609.34).toFixed(1);
-    const wikiUrl  = `https://en.wikipedia.org/wiki/${encodeURIComponent(p.title)}`;
-    const mapsUrl  = `https://www.google.com/maps?q=${p.lat},${p.lon}`;
-    const photoEl  = p.thumb
-      ? `<img class="place-photo" src="${p.thumb}" alt="${escHtml(p.title)}" />`
-      : `<div class="place-photo-placeholder">🏛️</div>`;
+    const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const stars   = renderStars((p._score / maxScore) * 5);
+    const score   = ((p._score / maxScore) * 5).toFixed(1);
+    const lat     = p.lat ?? p.center.lat;
+    const lng     = p.lon ?? p.center.lon;
+    const type    = formatType(p.tags);
+    const addr    = p.tags['addr:street']
+      ? `${p.tags['addr:housenumber'] || ''} ${p.tags['addr:street']}`.trim()
+      : '';
+    const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+    const wikiUrl = p.tags.wikipedia
+      ? `https://en.wikipedia.org/wiki/${encodeURIComponent(p.tags.wikipedia.replace(/^en:/, ''))}`
+      : null;
 
     return `<div class="place-card" data-index="${i}">
-      ${photoEl}
       <div class="place-info">
-        <div class="rank-badge ${badge}">${i + 1}</div>
-        <div class="place-name">${escHtml(p.title)}</div>
-        <div class="place-rating">
-          <span class="stars">${starStr}</span>
-          <span class="rating-num">${stars.toFixed(1)}</span>
+        <div class="card-top">
+          <div class="rank-badge ${badge}">${i + 1}</div>
+          <div class="place-name">${escHtml(p.tags.name)}</div>
         </div>
-        <div class="place-dist">${distMi} mi away</div>
+        <div class="place-type">${escHtml(type)}</div>
+        <div class="place-rating">
+          <span class="stars">${stars}</span>
+          <span class="rating-num">${score}</span>
+        </div>
+        ${addr ? `<div class="place-address">${escHtml(addr)}</div>` : ''}
         <div class="place-links">
-          <a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>
           <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps</a>
+          ${wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>` : ''}
         </div>
       </div>
     </div>`;
@@ -131,9 +191,11 @@ function renderMap(centerLat, centerLng, places) {
   }).addTo(leafletMap);
 
   places.forEach((p, i) => {
-    const marker = L.marker([p.lat, p.lon])
+    const lat = p.lat ?? p.center.lat;
+    const lng = p.lon ?? p.center.lon;
+    const marker = L.marker([lat, lng])
       .addTo(leafletMap)
-      .bindPopup(`<strong>${escHtml(p.title)}</strong>`);
+      .bindPopup(`<strong>${escHtml(p.tags.name)}</strong><br><small>${escHtml(formatType(p.tags))}</small>`);
     marker.on('click', () => {
       placesList.querySelectorAll('.place-card').forEach((c, j) => c.classList.toggle('active', j === i));
     });
@@ -145,14 +207,16 @@ function renderMap(centerLat, centerLng, places) {
   setTimeout(() => leafletMap.invalidateSize(), 50);
 }
 
-function sizeToStars(size, maxSize) {
-  return Math.max(1, Math.min(5, (size / maxSize) * 5));
+function formatType(tags) {
+  const raw = tags.tourism || tags.historic || tags.leisure || 'attraction';
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function renderStars(rating) {
-  const full  = Math.floor(rating);
-  const half  = (rating - full) >= 0.5 ? 1 : 0;
-  const empty = 5 - full - half;
+  const clamped = Math.min(5, Math.max(0, rating));
+  const full    = Math.floor(clamped);
+  const half    = (clamped - full) >= 0.5 ? 1 : 0;
+  const empty   = 5 - full - half;
   return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
 }
 
