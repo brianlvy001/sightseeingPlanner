@@ -16,13 +16,44 @@ const placesPanel  = document.getElementById('places-panel');
 const placesList   = document.getElementById('places-list');
 const panelTitle   = document.getElementById('panel-title');
 
+const Q = (tag, val) =>
+  `(node["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG); way["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG););`;
+
 const OVERPASS_QUERIES = {
-  museum:         `(node["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG););`,
-  park:           `(node["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG); way["leisure"="park"]["name"](around:${RADIUS_M},LAT,LNG););`,
-  art_gallery:    `(node["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="gallery"]["name"](around:${RADIUS_M},LAT,LNG););`,
-  zoo:            `(node["tourism"="zoo"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="zoo"]["name"](around:${RADIUS_M},LAT,LNG););`,
-  aquarium:       `(node["tourism"="aquarium"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="aquarium"]["name"](around:${RADIUS_M},LAT,LNG););`,
-  amusement_park: `(node["tourism"="theme_park"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="theme_park"]["name"](around:${RADIUS_M},LAT,LNG););`,
+  // Sightseeing
+  museum:           Q('tourism', 'museum'),
+  park:             Q('leisure', 'park'),
+  art_gallery:      Q('tourism', 'gallery'),
+  zoo:              Q('tourism', 'zoo'),
+  aquarium:         Q('tourism', 'aquarium'),
+  amusement_park:   Q('tourism', 'theme_park'),
+  tourist_attraction: `(node["tourism"="attraction"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="attraction"]["name"](around:${RADIUS_M},LAT,LNG); node["historic"]["name"](around:${RADIUS_M},LAT,LNG); way["historic"]["name"](around:${RADIUS_M},LAT,LNG););`,
+  // Food & Drink
+  restaurant:       Q('amenity', 'restaurant'),
+  cafe:             Q('amenity', 'cafe'),
+  bar:              Q('amenity', 'bar'),
+  bakery:           Q('amenity', 'bakery'),
+  // Entertainment
+  movie_theater:    Q('amenity', 'cinema'),
+  night_club:       Q('amenity', 'nightclub'),
+  bowling_alley:    Q('amenity', 'bowling_alley'),
+  // Shopping
+  shopping_mall:    Q('shop', 'mall'),
+  supermarket:      Q('shop', 'supermarket'),
+  clothing_store:   Q('shop', 'clothes'),
+  book_store:       Q('shop', 'books'),
+  // Health & Wellness
+  hospital:         Q('amenity', 'hospital'),
+  pharmacy:         Q('amenity', 'pharmacy'),
+  gym:              Q('leisure', 'fitness_centre'),
+  spa:              Q('leisure', 'spa'),
+  // Travel
+  lodging:          Q('tourism', 'hotel'),
+  gas_station:      Q('amenity', 'fuel'),
+  car_rental:       Q('amenity', 'car_rental'),
+  // Finance
+  bank:             Q('amenity', 'bank'),
+  atm:              Q('amenity', 'atm'),
 };
 
 let leafletMap = null;
@@ -65,8 +96,16 @@ form.addEventListener('submit', async (e) => {
     const TYPE_LABELS = {
       museum: 'Top Museums', park: 'Top Parks', art_gallery: 'Top Art Galleries',
       zoo: 'Top Zoos', aquarium: 'Top Aquariums', amusement_park: 'Top Amusement Parks',
+      tourist_attraction: 'Top Attractions',
+      restaurant: 'Top Restaurants', cafe: 'Top Cafes', bar: 'Top Bars', bakery: 'Top Bakeries',
+      movie_theater: 'Top Movie Theaters', night_club: 'Top Night Clubs', bowling_alley: 'Top Bowling Alleys',
+      shopping_mall: 'Top Shopping Malls', supermarket: 'Top Supermarkets',
+      clothing_store: 'Top Clothing Stores', book_store: 'Top Book Stores',
+      hospital: 'Nearby Hospitals', pharmacy: 'Nearby Pharmacies', gym: 'Top Gyms', spa: 'Top Spas',
+      lodging: 'Top Hotels', gas_station: 'Nearby Gas Stations', car_rental: 'Top Car Rentals',
+      bank: 'Nearby Banks', atm: 'Nearby ATMs',
     };
-    panelTitle.textContent = TYPE_LABELS[type] || 'Top Sightseeing';
+    panelTitle.textContent = TYPE_LABELS[type] || 'Top Places';
     setStatus(`Found ${places.length} place${places.length > 1 ? 's' : ''}`);
     source === 'google' ? renderGoogleCards(places) : renderOsmCards(places);
     placesPanel.classList.remove('hidden');
@@ -133,10 +172,16 @@ function osmScore(p) {
   const t = p.tags;
   let s = 0;
   if (t.wikipedia || t.wikidata) s += 10;
-  if (['attraction','museum','zoo','aquarium','theme_park'].includes(t.tourism)) s += 5;
+  if (['attraction','museum','zoo','aquarium','theme_park','hotel'].includes(t.tourism)) s += 5;
   else if (['viewpoint','gallery','artwork'].includes(t.tourism)) s += 3;
   if (t.historic) s += 4;
+  if (t.amenity) s += 3;
+  if (t.shop) s += 3;
+  if (t.leisure) s += 3;
   if (t.website || t['contact:website']) s += 2;
+  if (t.phone || t['contact:phone']) s += 1;
+  if (t['addr:street']) s += 1;
+  if (t.opening_hours) s += 2;
   s += Math.min(Object.keys(t).length, 20) * 0.2;
   return s;
 }

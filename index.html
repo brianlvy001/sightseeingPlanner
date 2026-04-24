@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nearby Sightseeing</title>
+  <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=15" />
 </head>
 <body>
   <header>
-    <h1>Nearby Sightseeing</h1>
-    <p class="subtitle">Top-rated attractions within 8 miles of any address</p>
+    <h1>Explore Nearby</h1>
+    <p class="subtitle">Discover top-rated places within 8 miles of any address</p>
   </header>
 
   <main>
@@ -20,14 +20,49 @@
         <input id="address-input" type="text" placeholder="Enter an address or city..." autocomplete="off" required />
       </div>
       <div class="filter-group">
-        <label for="type-select">🏛️ Type</label>
+        <label for="type-select">🔍 Category</label>
         <select id="type-select">
-          <option value="museum">Museums</option>
-          <option value="park">Parks</option>
-          <option value="art_gallery">Art Galleries</option>
-          <option value="zoo">Zoos</option>
-          <option value="aquarium">Aquariums</option>
-          <option value="amusement_park">Amusement Parks</option>
+          <optgroup label="🍽️ Food &amp; Drink">
+            <option value="restaurant">Restaurants</option>
+            <option value="cafe">Cafes</option>
+            <option value="bar">Bars &amp; Nightlife</option>
+            <option value="bakery">Bakeries</option>
+          </optgroup>
+          <optgroup label="🎭 Entertainment">
+            <option value="museum">Museums</option>
+            <option value="movie_theater">Movie Theaters</option>
+            <option value="amusement_park">Amusement Parks</option>
+            <option value="night_club">Night Clubs</option>
+            <option value="bowling_alley">Bowling</option>
+          </optgroup>
+          <optgroup label="🏛️ Sightseeing">
+            <option value="park">Parks</option>
+            <option value="art_gallery">Art Galleries</option>
+            <option value="zoo">Zoos</option>
+            <option value="aquarium">Aquariums</option>
+            <option value="tourist_attraction">Attractions</option>
+          </optgroup>
+          <optgroup label="🛍️ Shopping">
+            <option value="shopping_mall">Shopping Malls</option>
+            <option value="supermarket">Supermarkets</option>
+            <option value="clothing_store">Clothing Stores</option>
+            <option value="book_store">Book Stores</option>
+          </optgroup>
+          <optgroup label="🏥 Health &amp; Wellness">
+            <option value="hospital">Hospitals</option>
+            <option value="pharmacy">Pharmacies</option>
+            <option value="gym">Gyms</option>
+            <option value="spa">Spas</option>
+          </optgroup>
+          <optgroup label="✈️ Travel">
+            <option value="lodging">Hotels</option>
+            <option value="gas_station">Gas Stations</option>
+            <option value="car_rental">Car Rentals</option>
+          </optgroup>
+          <optgroup label="🏦 Finance">
+            <option value="bank">Banks</option>
+            <option value="atm">ATMs</option>
+          </optgroup>
         </select>
       </div>
       <div class="filter-group">
@@ -39,7 +74,7 @@
       </div>
       <div class="filter-group btn-group">
         <label>&nbsp;</label>
-        <button type="submit">🔍 Find Sights</button>
+        <button type="submit">🔍 Find Places</button>
       </div>
     </form>
 
@@ -47,47 +82,41 @@
 
     <div id="content">
       <aside id="places-panel" class="hidden">
-        <h2 id="panel-title">Top Sightseeing</h2>
+        <h2 id="panel-title">Top Places</h2>
         <div id="places-list"></div>
       </aside>
 
       <div id="map-container" class="hidden">
-
-      <!-- Loading state -->
-      <div id="ph-loading" class="placeholder hidden">
-        <div class="pin-wrapper">
-          <span class="pin">📍</span>
-          <div class="ripple r1"></div>
-          <div class="ripple r2"></div>
-          <div class="ripple r3"></div>
+        <div id="ph-loading" class="placeholder hidden">
+          <div class="pin-wrapper">
+            <span class="pin">📍</span>
+            <div class="ripple r1"></div>
+            <div class="ripple r2"></div>
+            <div class="ripple r3"></div>
+          </div>
+          <p class="ph-title loading-title">Exploring your area...</p>
+          <p class="ph-msg">Hold tight! We're scouting the best spots near you.</p>
+          <div class="ph-dots"><span></span><span></span><span></span></div>
         </div>
-        <p class="ph-title loading-title">Exploring your area...</p>
-        <p class="ph-msg">Hold tight! We're scouting the best spots near you.</p>
-        <div class="ph-dots"><span></span><span></span><span></span></div>
-      </div>
-
-      <!-- Error state -->
-      <div id="ph-error" class="placeholder hidden">
-        <div class="ph-scene">
-          <span class="crane">🏗️</span>
-          <span class="gear g1">⚙️</span>
-          <span class="gear g2">⚙️</span>
-          <span class="gear g3">⚙️</span>
+        <div id="ph-error" class="placeholder hidden">
+          <div class="ph-scene">
+            <span class="crane">🏗️</span>
+            <span class="gear g1">⚙️</span>
+            <span class="gear g2">⚙️</span>
+            <span class="gear g3">⚙️</span>
+          </div>
+          <p class="ph-title">Engineering in Progress</p>
+          <p class="ph-msg" id="ph-msg">Something went wrong. Our engineers are on it!</p>
         </div>
-        <p class="ph-title">Engineering in Progress</p>
-        <p class="ph-msg" id="ph-msg">Something went wrong. Our engineers are on it!</p>
+        <div id="map"></div>
+        <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
       </div>
-
-      <div id="map"></div>
-      <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
-    </div>
     </div>
   </main>
 
   <div id="attr" style="display:none"></div>
-
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo&libraries=places"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=15"></script>
 </body>
 </html>
