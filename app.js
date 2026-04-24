@@ -29,6 +29,7 @@ let leafletMap = null;
 let lastCenter = null;
 let lastPlaces = [];
 let lastSource = null;
+let markers    = [];
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -209,8 +210,6 @@ function attachCardClicks() {
   });
 }
 
-let markers = [];
-
 // ── Map renderers ─────────────────────────────────────────────────────────────
 function renderLeaflet(center, places) {
   hidePlaceholders();
@@ -278,6 +277,14 @@ function hidePlaceholders() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function renderStars(rating) {
+  const v     = Math.min(5, Math.max(0, rating));
+  const full  = Math.floor(v);
+  const half  = (v - full) >= 0.5 ? 1 : 0;
+  const empty = 5 - full - half;
+  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+}
+
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg;
   statusEl.className   = isError ? 'error' : '';
