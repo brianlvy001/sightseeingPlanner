@@ -181,9 +181,12 @@ function renderLeaflet(center, places) {
     markers.push(marker);
   });
 
-  const bounds = L.latLngBounds(markers.map(m => m.getLatLng()));
-  leafletMap.fitBounds(bounds, { padding: [40, 40] });
-  setTimeout(() => leafletMap.invalidateSize(), 50);
+  // Wait for the grid to finish painting before measuring dimensions
+  setTimeout(() => {
+    leafletMap.invalidateSize();
+    const bounds = L.latLngBounds(markers.map(m => m.getLatLng()));
+    leafletMap.fitBounds(bounds, { padding: [40, 40] });
+  }, 200);
 }
 
 function renderStars(rating) {
