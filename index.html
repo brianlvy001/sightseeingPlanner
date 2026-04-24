@@ -45,7 +45,13 @@
 
     <div id="status"></div>
 
-    <div id="map-container" class="hidden">
+    <div id="content">
+      <aside id="places-panel" class="hidden">
+        <h2 id="panel-title">Top Sightseeing</h2>
+        <div id="places-list"></div>
+      </aside>
+
+      <div id="map-container" class="hidden">
 
       <!-- Loading state -->
       <div id="ph-loading" class="placeholder hidden">
@@ -75,12 +81,13 @@
       <div id="map"></div>
       <iframe id="gmap" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
+    </div>
   </main>
 
   <div id="attr" style="display:none"></div>
 
   <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo&libraries=places"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=11"></script>
+  <script src="app.js?v=12"></script>
 </body>
 </html>

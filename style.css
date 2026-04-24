@@ -98,6 +98,99 @@ main {
 }
 #status.error { color: #c0392b; }
 
+/* ── Two-column layout ───────────────────────────────── */
+#content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 0;
+}
+
+#content.has-results {
+  grid-template-columns: 280px 1fr;
+  align-items: flex-start;
+}
+
+/* ── Places panel ────────────────────────────────────── */
+#places-panel {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+
+#places-panel.hidden { display: none; }
+
+#places-panel h2 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #fff;
+  background: linear-gradient(135deg, #1a1a2e, #0f3460);
+  padding: 0.8rem 1rem;
+}
+
+.place-card {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.place-card:last-child { border-bottom: none; }
+.place-card:hover  { background: #f8f9fb; }
+.place-card.active { background: #eef3fa; }
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.rank-badge {
+  flex-shrink: 0;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: #0f3460;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rank-badge.gold   { background: #f5a623; color: #1a1a2e; }
+.rank-badge.silver { background: #9e9e9e; }
+.rank-badge.bronze { background: #a1673a; }
+
+.place-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.place-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+.stars       { color: #f5a623; font-size: 0.78rem; letter-spacing: 1px; }
+.rating-num  { font-size: 0.8rem; font-weight: 700; color: #333; }
+.rating-count { font-size: 0.72rem; color: #aaa; }
+
+.place-type    { font-size: 0.72rem; color: #888; margin-top: 0.1rem; text-transform: capitalize; }
+.place-address { font-size: 0.72rem; color: #999; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.place-links { display: flex; gap: 0.5rem; margin-top: 0.3rem; }
+.place-link  { font-size: 0.72rem; color: #e94560; text-decoration: none; font-weight: 600; }
+.place-link:hover { text-decoration: underline; }
+
 /* ── Map container ───────────────────────────────────── */
 #map-container {
   position: relative;

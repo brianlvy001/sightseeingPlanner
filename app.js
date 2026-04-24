@@ -11,6 +11,10 @@ const mapContainer = document.getElementById('map-container');
 const phLoading    = document.getElementById('ph-loading');
 const phError      = document.getElementById('ph-error');
 const phMsg        = document.getElementById('ph-msg');
+const content      = document.getElementById('content');
+const placesPanel  = document.getElementById('places-panel');
+const placesList   = document.getElementById('places-list');
+const panelTitle   = document.getElementById('panel-title');
 
 const OVERPASS_QUERIES = {
   museum:         `(node["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="museum"]["name"](around:${RADIUS_M},LAT,LNG););`,
@@ -34,6 +38,8 @@ form.addEventListener('submit', async (e) => {
   if (!address) return;
 
   setStatus('Locating address...');
+  content.classList.remove('has-results');
+  placesPanel.classList.add('hidden');
   showLoading();
   form.querySelector('button').disabled = true;
 
@@ -55,7 +61,15 @@ form.addEventListener('submit', async (e) => {
     lastPlaces = places;
     lastSource = source;
 
+    const TYPE_LABELS = {
+      museum: 'Top Museums', park: 'Top Parks', art_gallery: 'Top Art Galleries',
+      zoo: 'Top Zoos', aquarium: 'Top Aquariums', amusement_park: 'Top Amusement Parks',
+    };
+    panelTitle.textContent = TYPE_LABELS[type] || 'Top Sightseeing';
     setStatus(`Found ${places.length} place${places.length > 1 ? 's' : ''}`);
+    source === 'google' ? renderGoogleCards(places) : renderOsmCards(places);
+    placesPanel.classList.remove('hidden');
+    content.classList.add('has-results');
     source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
   } catch (err) {
     showError(err.message);
@@ -126,6 +140,77 @@ function osmScore(p) {
   return s;
 }
 
+// ── Card renderers ────────────────────────────────────────────────────────────
+function renderGoogleCards(places) {
+  placesList.innerHTML = places.map((p, i) => {
+    const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const stars   = renderStars(p.rating);
+    const count   = p.user_ratings_total ? `(${p.user_ratings_total.toLocaleString()})` : '';
+    const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${p.place_id}`;
+    return `<div class="place-card" data-index="${i}">
+      <div class="card-top">
+        <div class="rank-badge ${badge}">${i + 1}</div>
+        <div class="place-name">${escHtml(p.name)}</div>
+      </div>
+      <div class="place-rating">
+        <span class="stars">${stars}</span>
+        <span class="rating-num">${p.rating.toFixed(1)}</span>
+        <span class="rating-count">${count}</span>
+      </div>
+      ${p.vicinity ? `<div class="place-address">${escHtml(p.vicinity)}</div>` : ''}
+      <div class="place-links">
+        <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
+      </div>
+    </div>`;
+  }).join('');
+  attachCardClicks();
+}
+
+function renderOsmCards(places) {
+  const maxScore = places[0]._score || 1;
+  placesList.innerHTML = places.map((p, i) => {
+    const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const score   = (p._score / maxScore) * 5;
+    const stars   = renderStars(score);
+    const lat     = p.lat ?? p.center.lat;
+    const lng     = p.lon ?? p.center.lon;
+    const type    = (p.tags.tourism || p.tags.historic || p.tags.leisure || '').replace(/_/g, ' ');
+    const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+    const wikiUrl = p.tags.wikipedia
+      ? `https://en.wikipedia.org/wiki/${encodeURIComponent(p.tags.wikipedia.replace(/^en:/, ''))}`
+      : null;
+    return `<div class="place-card" data-index="${i}">
+      <div class="card-top">
+        <div class="rank-badge ${badge}">${i + 1}</div>
+        <div class="place-name">${escHtml(p.tags.name)}</div>
+      </div>
+      ${type ? `<div class="place-type">${escHtml(type)}</div>` : ''}
+      <div class="place-rating">
+        <span class="stars">${stars}</span>
+        <span class="rating-num">${score.toFixed(1)}</span>
+      </div>
+      <div class="place-links">
+        <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps</a>
+        ${wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  attachCardClicks();
+}
+
+function attachCardClicks() {
+  placesList.querySelectorAll('.place-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const i = parseInt(card.dataset.index);
+      placesList.querySelectorAll('.place-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      if (leafletMap && markers[i]) { markers[i].openPopup(); leafletMap.panTo(markers[i].getLatLng()); }
+    });
+  });
+}
+
+let markers = [];
+
 // ── Map renderers ─────────────────────────────────────────────────────────────
 function renderLeaflet(center, places) {
   hidePlaceholders();
@@ -133,6 +218,7 @@ function renderLeaflet(center, places) {
   mapDiv.style.display    = 'block';
 
   if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+  markers = [];
 
   leafletMap = L.map(mapDiv).setView([center.lat, center.lng], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -140,12 +226,17 @@ function renderLeaflet(center, places) {
     maxZoom: 19,
   }).addTo(leafletMap);
 
-  const markers = places.map((p, i) => {
+  places.forEach((p, i) => {
     const lat  = p.geometry ? p.geometry.location.lat() : (p.lat ?? p.center.lat);
     const lng  = p.geometry ? p.geometry.location.lng() : (p.lon ?? p.center.lon);
     const name = p.name || p.tags?.name || '';
     const extra = p.rating ? `<br>⭐ ${p.rating}` : '';
-    return L.marker([lat, lng]).addTo(leafletMap).bindPopup(`<strong>${escHtml(name)}</strong>${extra}`);
+    const marker = L.marker([lat, lng]).addTo(leafletMap)
+      .bindPopup(`<strong>${escHtml(name)}</strong>${extra}`);
+    marker.on('click', () => {
+      placesList.querySelectorAll('.place-card').forEach((c, j) => c.classList.toggle('active', j === i));
+    });
+    markers.push(marker);
   });
 
   setTimeout(() => {
