@@ -860,20 +860,26 @@ function setPullState(state) {
   }
 }
 
-function doFoodieRefresh() {
-  if (!lastFoodiePosts.length) return;
+let foodieRefreshRank = 'DISTANCE'; // alternate each refresh to vary results
+
+async function doFoodieRefresh() {
+  if (!lastCenter || foodiePullBar.dataset.state === 'refreshing') return;
   setPullState('refreshing');
-  // Fisher-Yates shuffle so every refresh shows a different ordering
-  const shuffled = [...lastFoodiePosts];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  setTimeout(() => {
-    renderPostCards(shuffled);
-    setPullState('idle');
+  try {
+    // Alternate DISTANCE / POPULARITY so each refresh hits a different ranking order
+    const rank   = foodieRefreshRank;
+    foodieRefreshRank = rank === 'DISTANCE' ? 'POPULARITY' : 'DISTANCE';
+
+    const places = await fetchGooglePlaces(lastCenter, typeSelect.value, true, rank);
+    lastFoodiePlaces = places;
+    lastFoodiePosts  = buildFoodiePosts(places);
+    renderPostCards(lastFoodiePosts);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, 650);
+  } catch {
+    // keep existing posts on failure
+  } finally {
+    setPullState('idle');
+  }
 }
 
 // Touch — fires on any scroll surface
@@ -907,7 +913,7 @@ document.addEventListener('touchend', e => {
 let wheelAccum = 0;
 let wheelTimer = null;
 document.addEventListener('wheel', e => {
-  if (currentView !== 'foodie' || !lastFoodiePosts.length || foodiePullBar.dataset.state === 'refreshing') {
+  if (currentView !== 'foodie' || !lastCenter || foodiePullBar.dataset.state === 'refreshing') {
     wheelAccum = 0;
     return;
   }
@@ -1044,7 +1050,7 @@ const FOOD_TYPES = new Set([
   'japanese_restaurant', 'vietnamese_restaurant', 'korean_restaurant',
 ]);
 
-async function fetchGooglePlaces(center, type, withReviews = false) {
+async function fetchGooglePlaces(center, type, withReviews = false, rankPreference = 'POPULARITY') {
   const baseFields = 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos.name,places.photos.authorAttributions';
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
     method: 'POST',
@@ -1059,7 +1065,7 @@ async function fetchGooglePlaces(center, type, withReviews = false) {
       locationRestriction: {
         circle: { center: { latitude: center.lat, longitude: center.lng }, radius: RADIUS_M },
       },
-      rankPreference: 'POPULARITY',
+      rankPreference,
     }),
   });
   if (!res.ok) {
