@@ -56,11 +56,12 @@ const OVERPASS_QUERIES = {
   atm:              Q('amenity', 'atm'),
 };
 
-let leafletMap = null;
-let lastCenter = null;
-let lastPlaces = [];
-let lastSource = null;
-let markers    = [];
+let leafletMap   = null;
+let googleSvcMap = null;
+let lastCenter   = null;
+let lastPlaces   = [];
+let lastSource   = null;
+let markers      = [];
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -138,8 +139,11 @@ async function geocodeNominatim(address) {
 // ── Google Places ─────────────────────────────────────────────────────────────
 function fetchGooglePlaces(center, type) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Google Places timed out. Check that Places API is enabled and billing is active.')), 10000);
-    const service = new google.maps.places.PlacesService(document.getElementById('attr'));
+    const timer = setTimeout(() => reject(new Error('Google Places timed out. Check that the Places API is enabled in Google Cloud Console.')), 10000);
+    if (!googleSvcMap) {
+      googleSvcMap = new google.maps.Map(document.getElementById('attr'), { center: { lat: 0, lng: 0 }, zoom: 1 });
+    }
+    const service = new google.maps.places.PlacesService(googleSvcMap);
     service.nearbySearch({ location: center, radius: RADIUS_M, type }, (places, status) => {
       clearTimeout(timer);
       const S = google.maps.places.PlacesServiceStatus;
