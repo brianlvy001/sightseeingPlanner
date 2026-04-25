@@ -477,20 +477,23 @@ function openRouteModal(destLat, destLng, destName) {
     routeFrame.style.display  = 'block';
     loadGoogleRoute();
   } else {
-    routeFrame.style.display  = 'none';
-    routeMapEl.style.display  = 'block';
-    if (!routeLeaflet) {
-      routeLeaflet = L.map(routeMapEl, { zoomControl: true })
-        .setView([lastCenter.lat, lastCenter.lng], 13);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        maxZoom: 19,
-      }).addTo(routeLeaflet);
-    }
+    routeFrame.style.display = 'none';
+    routeMapEl.style.display = 'block';
+    // Defer Leaflet init until after the browser has painted the modal and
+    // calculated the container dimensions; otherwise L.map() gets 0 height.
     setTimeout(() => {
-      routeLeaflet.invalidateSize();
+      if (!routeLeaflet) {
+        routeLeaflet = L.map(routeMapEl, { zoomControl: true })
+          .setView([lastCenter.lat, lastCenter.lng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
+        }).addTo(routeLeaflet);
+      } else {
+        routeLeaflet.invalidateSize();
+      }
       fetchAndDrawRoute();
-    }, 80);
+    }, 150);
   }
 }
 
