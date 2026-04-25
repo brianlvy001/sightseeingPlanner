@@ -91,12 +91,8 @@ const FOODIE_TEXT_QUERIES = {
 
 let currentView       = 'map-route';
 let lastFoodiePlaces  = [];
-let lastFoodiePosts   = [];
-// Paginated foodie state
-let allFoodiePlaces   = [];   // accumulated across pages
-let allFoodiePosts    = [];   // full sorted pool
-let foodiePageToken   = null; // next-page token from searchText
-let foodiePostOffset  = 0;    // next slice start
+let foodiePageToken   = null; // next-page token from searchText (null = re-fetch page 1)
+let foodieType        = null; // type used for the current foodie feed
 let leafletMap   = null;
 let lastCenter   = null;
 let lastPlaces   = [];
@@ -878,27 +874,16 @@ async function doFoodieRefresh() {
   if (!lastCenter || foodiePullBar.dataset.state === 'refreshing') return;
   setPullState('refreshing');
   try {
-    let batch;
-    if (foodiePostOffset < allFoodiePosts.length) {
-      // Still have unseen posts in current pool
-      batch = allFoodiePosts.slice(foodiePostOffset, foodiePostOffset + 100);
-      foodiePostOffset += 100;
-    } else if (foodiePageToken) {
-      // Fetch next page of restaurants and append to pool
-      const { places, nextPageToken } = await fetchFoodiePage(lastCenter, typeSelect.value, foodiePageToken);
-      foodiePageToken = nextPageToken;
-      mergeFoodiePlaces(places);
-      batch = allFoodiePosts.slice(foodiePostOffset, foodiePostOffset + 100);
-      foodiePostOffset += 100;
-    } else {
-      // Pool exhausted — wrap back to start
-      foodiePostOffset = 0;
-      batch = allFoodiePosts.slice(0, 100);
-      foodiePostOffset = 100;
+    // Fetch the next page (or re-fetch page 1 when token is exhausted)
+    const { places, nextPageToken } = await fetchFoodiePage(
+      lastCenter, foodieType || typeSelect.value, foodiePageToken
+    );
+    foodiePageToken = nextPageToken;
+    const posts = buildFoodiePosts(places);
+    if (posts.length > 0) {
+      renderPostCards(posts);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    lastFoodiePosts = batch;
-    renderPostCards(batch);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch {
     // keep existing posts on failure
   } finally {
@@ -1108,33 +1093,17 @@ async function fetchFoodiePage(center, type, pageToken = null) {
   };
 }
 
-// Append only genuinely new places and their posts — never rebuild the full pool.
-// Rebuilding would re-sort allFoodiePosts and make slice(offset, offset+100)
-// return posts the user already saw in a previous batch.
-function mergeFoodiePlaces(newPlaces) {
-  const seenKeys = new Set(allFoodiePlaces.map(p => brandKey(p.displayName?.text || '')));
-  const fresh    = newPlaces.filter(p => !seenKeys.has(brandKey(p.displayName?.text || '')));
-  if (!fresh.length) return;
-  allFoodiePlaces = [...allFoodiePlaces, ...fresh];
-  allFoodiePosts  = [...allFoodiePosts, ...buildFoodiePosts(fresh)];
-}
-
-// Init: first page fetch, show first 100 posts.
+// Init: fetch page 1 and show its posts. Subsequent refreshes fetch the next page.
 async function initFoodieFeed(center, type) {
-  allFoodiePlaces  = [];
-  allFoodiePosts   = [];
-  foodiePageToken  = null;
-  foodiePostOffset = 0;
+  foodiePageToken = null;
+  foodieType      = type;
 
   const { places, nextPageToken } = await fetchFoodiePage(center, type);
   foodiePageToken = nextPageToken;
-  mergeFoodiePlaces(places.sort((a, b) => placeScore(b) - placeScore(a)));
 
-  lastFoodiePosts = allFoodiePosts;
-  const batch = allFoodiePosts.slice(0, 100);
-  foodiePostOffset = 100;
+  const posts = buildFoodiePosts(places);
   foodieTitle.textContent = TYPE_LABELS[type] || 'Top Places';
-  renderPostCards(batch);
+  renderPostCards(posts);
   foodieWrap.classList.remove('hidden');
 }
 
