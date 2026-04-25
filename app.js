@@ -54,8 +54,6 @@ const postGallery    = document.getElementById('post-gallery');
 const postScroll     = document.getElementById('post-scroll');
 const postAuthorRow  = document.getElementById('post-author-row');
 const postFullText   = document.getElementById('post-full-text');
-const postCommentsCount = document.getElementById('post-comments-count');
-const postCommentsList  = document.getElementById('post-comments-list');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -631,12 +629,13 @@ function buildFoodiePosts(places) {
     const photos  = place.photos  || [];
     reviews.forEach((review, ri) => {
       if (!review.text?.text) return;
-      const photoRef = (photos[ri % Math.max(photos.length, 1)])?.name;
+      // Skip reviews that would reuse a photo already assigned to an earlier review
+      if (photos.length > 0 && ri >= photos.length) return;
+      const photoRef = photos[ri]?.name;
       const photoUrl = photoRef
         ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}`
         : '';
       const ts = new Date(review.publishTime || 0).getTime();
-      // Mix popular (60%) and recent (40%): recency decays over ~12 months
       const ageMonths    = (now - ts) / (1000 * 60 * 60 * 24 * 30);
       const recencyScore = Math.max(0, 1 - ageMonths / 12);
       const score        = (review.rating || 0) / 5 * 0.6 + recencyScore * 0.4;
@@ -791,39 +790,6 @@ function openPostModal(post) {
 
   // Full review text
   postFullText.textContent = text;
-
-  // Comments — all other reviews of the same place
-  const comments = (place.reviews || []).filter(r =>
-    r.authorAttribution?.displayName !== author ||
-    r.relativePublishTimeDescription !== timeAgo
-  );
-  postCommentsCount.textContent = `Comments (${comments.length})`;
-
-  if (comments.length === 0) {
-    postCommentsList.innerHTML = '<p class="post-no-comments">No other reviews yet.</p>';
-  } else {
-    postCommentsList.innerHTML = comments.map(c => {
-      const cAuthor  = c.authorAttribution?.displayName || 'Anonymous';
-      const cAvatar  = c.authorAttribution?.photoUri    || '';
-      const cRating  = c.rating || 0;
-      const cTime    = c.relativePublishTimeDescription || '';
-      const cText    = c.text?.text || '';
-      const cAvHtml  = cAvatar
-        ? `<img class="post-comment-avatar" src="${cAvatar}" alt="${escHtml(cAuthor)}" referrerpolicy="no-referrer">`
-        : `<div class="post-comment-avatar-fallback">${escHtml(cAuthor[0] || '?')}</div>`;
-      return `<div class="post-comment">
-        ${cAvHtml}
-        <div class="post-comment-body">
-          <div class="post-comment-header">
-            <span class="post-comment-name">${escHtml(cAuthor)}</span>
-            <span class="post-comment-stars">${rnStars(cRating)}</span>
-            <span class="post-comment-time">${escHtml(cTime)}</span>
-          </div>
-          ${cText ? `<div class="post-comment-text">${escHtml(cText)}</div>` : ''}
-        </div>
-      </div>`;
-    }).join('');
-  }
 
   postScroll.scrollTop  = 0;
   postGallery.scrollLeft = 0;
