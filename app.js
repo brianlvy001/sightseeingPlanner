@@ -26,50 +26,25 @@ const activeCount   = document.getElementById('active-count');
 const activeLinks   = document.getElementById('active-links');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 
-const Q = (tag, val) =>
-  `(node["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG); way["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG););`;
+// OSM: query restaurants filtered by cuisine tag
+const CQ = (cuisine) =>
+  `(node["amenity"="restaurant"]["cuisine"="${cuisine}"]["name"](around:${RADIUS_M},LAT,LNG);` +
+  ` way["amenity"="restaurant"]["cuisine"="${cuisine}"]["name"](around:${RADIUS_M},LAT,LNG););`;
 
 const OVERPASS_QUERIES = {
-  museum:             Q('tourism', 'museum'),
-  park:               Q('leisure', 'park'),
-  art_gallery:        Q('tourism', 'gallery'),
-  zoo:                Q('tourism', 'zoo'),
-  aquarium:           Q('tourism', 'aquarium'),
-  amusement_park:     Q('tourism', 'theme_park'),
-  tourist_attraction: `(node["tourism"="attraction"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="attraction"]["name"](around:${RADIUS_M},LAT,LNG); node["historic"]["name"](around:${RADIUS_M},LAT,LNG); way["historic"]["name"](around:${RADIUS_M},LAT,LNG););`,
-  restaurant:         Q('amenity', 'restaurant'),
-  cafe:               Q('amenity', 'cafe'),
-  bar:                Q('amenity', 'bar'),
-  bakery:             Q('amenity', 'bakery'),
-  movie_theater:      Q('amenity', 'cinema'),
-  night_club:         Q('amenity', 'nightclub'),
-  bowling_alley:      Q('amenity', 'bowling_alley'),
-  shopping_mall:      Q('shop', 'mall'),
-  supermarket:        Q('shop', 'supermarket'),
-  clothing_store:     Q('shop', 'clothes'),
-  book_store:         Q('shop', 'books'),
-  hospital:           Q('amenity', 'hospital'),
-  pharmacy:           Q('amenity', 'pharmacy'),
-  gym:                Q('leisure', 'fitness_centre'),
-  spa:                Q('leisure', 'spa'),
-  lodging:            Q('tourism', 'hotel'),
-  gas_station:        Q('amenity', 'fuel'),
-  car_rental:         Q('amenity', 'car_rental'),
-  bank:               Q('amenity', 'bank'),
-  atm:                Q('amenity', 'atm'),
+  asian_restaurant:      CQ('asian'),
+  chinese_restaurant:    CQ('chinese'),
+  thai_restaurant:       CQ('thai'),
+  japanese_restaurant:   CQ('japanese'),
+  vietnamese_restaurant: CQ('vietnamese'),
 };
 
 const TYPE_LABELS = {
-  museum: 'Top Museums', park: 'Top Parks', art_gallery: 'Top Art Galleries',
-  zoo: 'Top Zoos', aquarium: 'Top Aquariums', amusement_park: 'Top Amusement Parks',
-  tourist_attraction: 'Top Attractions',
-  restaurant: 'Top Restaurants', cafe: 'Top Cafes', bar: 'Top Bars', bakery: 'Top Bakeries',
-  movie_theater: 'Top Movie Theaters', night_club: 'Top Night Clubs', bowling_alley: 'Top Bowling Alleys',
-  shopping_mall: 'Top Shopping Malls', supermarket: 'Top Supermarkets',
-  clothing_store: 'Top Clothing Stores', book_store: 'Top Book Stores',
-  hospital: 'Nearby Hospitals', pharmacy: 'Nearby Pharmacies', gym: 'Top Gyms', spa: 'Top Spas',
-  lodging: 'Top Hotels', gas_station: 'Nearby Gas Stations', car_rental: 'Top Car Rentals',
-  bank: 'Nearby Banks', atm: 'Nearby ATMs',
+  asian_restaurant:      'Top Asian Restaurants',
+  chinese_restaurant:    'Top Chinese Restaurants',
+  thai_restaurant:       'Top Thai Restaurants',
+  japanese_restaurant:   'Top Japanese Restaurants',
+  vietnamese_restaurant: 'Top Vietnamese Restaurants',
 };
 
 let leafletMap  = null;
@@ -314,7 +289,10 @@ async function geocodeNominatim(address) {
 
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────
 const GAPI_KEY = 'AIzaSyBvQza0NnKLqOXtNvYOs1-lcPXT6ghWCXM';
-const FOOD_TYPES = new Set(['restaurant', 'cafe', 'bar', 'bakery']);
+const FOOD_TYPES = new Set([
+  'asian_restaurant', 'chinese_restaurant', 'thai_restaurant',
+  'japanese_restaurant', 'vietnamese_restaurant',
+]);
 
 async function fetchGooglePlaces(center, type) {
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
