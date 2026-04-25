@@ -459,16 +459,34 @@ main {
 }
 .route-close:hover { color: #fff; background: rgba(255,255,255,0.1); }
 
-#route-frame {
+#route-map {
   width: 100%;
-  height: 380px;
-  border: none;
-  display: block;
+  height: 340px;
 }
+
+#route-info-bar {
+  padding: 0.45rem 1rem;
+  background: #2c2c2e;
+  color: rgba(255,255,255,0.65);
+  font-size: 0.78rem;
+  text-align: center;
+  min-height: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+#route-info-bar a {
+  color: #e94560;
+  text-decoration: none;
+  font-weight: 600;
+}
+#route-info-bar a:hover { text-decoration: underline; }
 
 @media (max-width: 640px) {
   .route-dialog { max-width: 100%; border-radius: 12px; }
-  #route-frame  { height: 300px; }
+  #route-map    { height: 280px; }
 }
 
 /* ── Full-screen mode ────────────────────────────────── */

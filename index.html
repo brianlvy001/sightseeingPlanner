@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=37" />
+  <link rel="stylesheet" href="style.css?v=38" />
 </head>
 <body>
   <header>
@@ -128,11 +128,12 @@
         </div>
         <button id="route-close" class="route-close" aria-label="Close">&times;</button>
       </div>
-      <iframe id="route-frame" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <div id="route-map"></div>
+      <div id="route-info-bar"></div>
     </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=38"></script>
+  <script src="app.js?v=39"></script>
 </body>
 </html>

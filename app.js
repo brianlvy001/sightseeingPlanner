@@ -31,7 +31,8 @@ const scrPrev       = document.getElementById('scr-prev');
 const scrNext       = document.getElementById('scr-next');
 const locateBtn     = document.getElementById('locate-btn');
 const routeModal    = document.getElementById('route-modal');
-const routeFrame    = document.getElementById('route-frame');
+const routeMapEl    = document.getElementById('route-map');
+const routeInfoBar  = document.getElementById('route-info-bar');
 const routeClose    = document.getElementById('route-close');
 const routeDestName = document.getElementById('route-dest-name');
 const modeBtns      = document.querySelectorAll('.mode-btn');
@@ -377,30 +378,102 @@ fullscreenBtn.addEventListener('click', () => {
 });
 
 // ── Route modal ───────────────────────────────────────────────────────────────
-let routeMode    = 'driving';
-let routeDestLat = null;
-let routeDestLng = null;
+let routeMode     = 'driving';
+let routeDestLat  = null;
+let routeDestLng  = null;
+let routeDestText = '';
+let routeLeaflet  = null;
+let routePolyline = null;
+let routeOriginMk = null;
+let routeDestMk   = null;
 
-function buildRouteUrl() {
-  if (!lastCenter || routeDestLat == null) return '';
-  return `https://www.google.com/maps/embed/v1/directions?key=${GAPI_KEY}` +
-    `&origin=${lastCenter.lat},${lastCenter.lng}` +
-    `&destination=${routeDestLat},${routeDestLng}` +
-    `&mode=${routeMode}`;
+// OSRM profile per travel mode (transit falls back to driving)
+const OSRM_PROFILE = { driving: 'driving', walking: 'foot', transit: 'driving' };
+
+async function fetchAndDrawRoute() {
+  if (!lastCenter || routeDestLat == null) return;
+  routeInfoBar.textContent = 'Calculating route…';
+
+  const profile = OSRM_PROFILE[routeMode];
+  const url = `https://router.project-osrm.org/route/v1/${profile}/` +
+    `${lastCenter.lng},${lastCenter.lat};${routeDestLng},${routeDestLat}` +
+    `?overview=full&geometries=geojson`;
+
+  try {
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (data.code !== 'Ok' || !data.routes.length) throw new Error('No route found');
+
+    const coords   = data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+    const routeMeta = data.routes[0];
+    const distKm   = (routeMeta.distance / 1000).toFixed(1);
+    const totalMin = Math.round(routeMeta.duration / 60);
+    const timeStr  = totalMin >= 60
+      ? `${Math.floor(totalMin / 60)}h ${totalMin % 60}m`
+      : `${totalMin} min`;
+
+    // Draw / redraw polyline
+    if (routePolyline) routeLeaflet.removeLayer(routePolyline);
+    routePolyline = L.polyline(coords, { color: '#e94560', weight: 5, opacity: 0.85 }).addTo(routeLeaflet);
+
+    // Origin marker (A)
+    if (routeOriginMk) routeLeaflet.removeLayer(routeOriginMk);
+    routeOriginMk = L.marker([lastCenter.lat, lastCenter.lng], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="background:#0f3460;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">A</div>',
+        iconSize: [28, 28], iconAnchor: [14, 14],
+      }),
+    }).addTo(routeLeaflet).bindPopup('Your location');
+
+    // Destination marker (B)
+    if (routeDestMk) routeLeaflet.removeLayer(routeDestMk);
+    routeDestMk = L.marker([routeDestLat, routeDestLng], {
+      icon: L.divIcon({
+        className: '',
+        html: '<div style="background:#e94560;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">B</div>',
+        iconSize: [28, 28], iconAnchor: [14, 14],
+      }),
+    }).addTo(routeLeaflet).bindPopup(routeDestText).openPopup();
+
+    routeLeaflet.fitBounds(routePolyline.getBounds(), { padding: [36, 36] });
+
+    const gmUrl = `https://www.google.com/maps/dir/${lastCenter.lat},${lastCenter.lng}/${routeDestLat},${routeDestLng}`;
+    const modeNote = routeMode === 'transit' ? ' (driving — transit via ' : '';
+    routeInfoBar.innerHTML = `📍 ${distKm} km · ⏱ ${timeStr}` +
+      (routeMode === 'transit'
+        ? ` &nbsp;·&nbsp; <a href="${gmUrl}" target="_blank" rel="noopener">Transit in Google Maps ↗</a>`
+        : ` &nbsp;·&nbsp; <a href="${gmUrl}" target="_blank" rel="noopener">Open in Google Maps ↗</a>`);
+  } catch {
+    routeInfoBar.textContent = 'Could not calculate route. Try a different mode.';
+  }
 }
 
 function openRouteModal(destLat, destLng, destName) {
-  routeDestLat = destLat;
-  routeDestLng = destLng;
-  routeDestName.textContent = `🗺️ Route to ${destName}`;
-  routeFrame.src = buildRouteUrl();
+  routeDestLat  = destLat;
+  routeDestLng  = destLng;
+  routeDestText = destName;
+  routeDestName.textContent = `Route to ${destName}`;
   routeModal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+
+  if (!routeLeaflet) {
+    routeLeaflet = L.map(routeMapEl, { zoomControl: true })
+      .setView([lastCenter.lat, lastCenter.lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(routeLeaflet);
+  }
+
+  setTimeout(() => {
+    routeLeaflet.invalidateSize();
+    fetchAndDrawRoute();
+  }, 80);
 }
 
 function closeRouteModal() {
   routeModal.classList.add('hidden');
-  routeFrame.src = '';
   document.body.style.overflow = '';
 }
 
@@ -412,7 +485,7 @@ modeBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     routeMode = btn.dataset.mode;
     modeBtns.forEach(b => b.classList.toggle('active', b === btn));
-    routeFrame.src = buildRouteUrl();
+    fetchAndDrawRoute();
   });
 });
 
