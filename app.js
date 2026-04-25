@@ -43,6 +43,9 @@ const foodieWrap    = document.getElementById('foodie-wrap');
 const foodieList    = document.getElementById('foodie-list');
 const foodieTitle   = document.getElementById('foodie-title');
 const foodieCount   = document.getElementById('foodie-count');
+const foodiePullBar = document.getElementById('foodie-pull-bar');
+const foodiePullIcon = document.getElementById('foodie-pull-icon');
+const foodiePullText = document.getElementById('foodie-pull-text');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -69,6 +72,7 @@ const TYPE_LABELS = {
 
 let currentView       = 'map-route';
 let lastFoodiePlaces  = [];
+let lastFoodiePosts   = [];
 let leafletMap   = null;
 let lastCenter   = null;
 let lastPlaces   = [];
@@ -653,48 +657,54 @@ function renderFoodieCards(places, type, source) {
     return;
   }
 
-  const posts = buildFoodiePosts(places);
+  lastFoodiePosts = buildFoodiePosts(places);
+  renderPostCards(lastFoodiePosts);
+  foodieWrap.classList.remove('hidden');
+}
+
+function renderPostCards(posts) {
   foodieCount.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
 
   if (posts.length === 0) {
     foodieList.innerHTML = '<p class="rn-empty">No reviews with text found. Try a different area.</p>';
-  } else {
-    foodieList.innerHTML = posts.map(({ place, review, photoUrl }) => {
-      const name      = place.displayName?.text || '';
-      const author    = review.authorAttribution?.displayName || 'Anonymous';
-      const avatarUrl = review.authorAttribution?.photoUri || '';
-      const rating    = review.rating || 0;
-      const timeAgo   = review.relativePublishTimeDescription || '';
-      const text      = review.text?.text || '';
-      const destLat   = place.location.latitude;
-      const destLng   = place.location.longitude;
-
-      return `<div class="rn-card">
-        <div class="rn-photo-wrap">
-          ${photoUrl
-            ? `<img class="rn-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.closest('.rn-photo-wrap').classList.add('rn-no-photo')">`
-            : ''}
-          <div class="rn-photo-gradient"></div>
-          <div class="rn-place-badge">${escHtml(name)}</div>
-          ${lastCenter ? `<button class="rn-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
-        </div>
-        <div class="rn-body">
-          <p class="rn-text">${escHtml(text)}</p>
-          <div class="rn-author-row">
-            ${avatarUrl
-              ? `<img class="rn-avatar" src="${avatarUrl}" alt="${escHtml(author)}" referrerpolicy="no-referrer">`
-              : `<div class="rn-avatar rn-avatar-fallback">${escHtml(author[0] || '?')}</div>`}
-            <span class="rn-author-name">${escHtml(author)}</span>
-            <span class="rn-time">${escHtml(timeAgo)}</span>
-            <span class="rn-rating" title="${rating} stars">${rnStars(rating)}</span>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+    wireRouteButtons();
+    return;
   }
 
+  foodieList.innerHTML = posts.map(({ place, review, photoUrl }) => {
+    const name      = place.displayName?.text || '';
+    const author    = review.authorAttribution?.displayName || 'Anonymous';
+    const avatarUrl = review.authorAttribution?.photoUri || '';
+    const rating    = review.rating || 0;
+    const timeAgo   = review.relativePublishTimeDescription || '';
+    const text      = review.text?.text || '';
+    const destLat   = place.location.latitude;
+    const destLng   = place.location.longitude;
+
+    return `<div class="rn-card">
+      <div class="rn-photo-wrap">
+        ${photoUrl
+          ? `<img class="rn-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.closest('.rn-photo-wrap').classList.add('rn-no-photo')">`
+          : ''}
+        <div class="rn-photo-gradient"></div>
+        <div class="rn-place-badge">${escHtml(name)}</div>
+        ${lastCenter ? `<button class="rn-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
+      </div>
+      <div class="rn-body">
+        <p class="rn-text">${escHtml(text)}</p>
+        <div class="rn-author-row">
+          ${avatarUrl
+            ? `<img class="rn-avatar" src="${avatarUrl}" alt="${escHtml(author)}" referrerpolicy="no-referrer">`
+            : `<div class="rn-avatar rn-avatar-fallback">${escHtml(author[0] || '?')}</div>`}
+          <span class="rn-author-name">${escHtml(author)}</span>
+          <span class="rn-time">${escHtml(timeAgo)}</span>
+          <span class="rn-rating" title="${rating} stars">${rnStars(rating)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
   wireRouteButtons();
-  foodieWrap.classList.remove('hidden');
 }
 
 function wireRouteButtons() {
@@ -705,6 +715,88 @@ function wireRouteButtons() {
     });
   });
 }
+
+// ── Pull-to-refresh at bottom (Foodie mode only) ──────────────────────────────
+function isAtPageBottom() {
+  return window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
+}
+
+function setPullState(state) {
+  foodiePullBar.dataset.state = state;
+  if (state === 'pulling') {
+    foodiePullIcon.textContent = '↑';
+    foodiePullText.textContent = 'Release to refresh';
+  } else if (state === 'refreshing') {
+    foodiePullIcon.textContent = '↻';
+    foodiePullText.textContent = 'Loading new posts…';
+  } else {
+    foodiePullIcon.textContent = '↓';
+    foodiePullText.textContent = 'Scroll down for more';
+  }
+}
+
+function doFoodieRefresh() {
+  if (!lastFoodiePosts.length) return;
+  setPullState('refreshing');
+  // Fisher-Yates shuffle so every refresh shows a different ordering
+  const shuffled = [...lastFoodiePosts];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  setTimeout(() => {
+    renderPostCards(shuffled);
+    setPullState('idle');
+    foodieWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 650);
+}
+
+// Touch — fires on any scroll surface
+let pullTouchY   = 0;
+let pullWasAtBot = false;
+
+document.addEventListener('touchstart', e => {
+  if (currentView !== 'foodie') return;
+  pullWasAtBot = isAtPageBottom();
+  pullTouchY   = pullWasAtBot ? e.touches[0].clientY : 0;
+}, { passive: true });
+
+document.addEventListener('touchmove', e => {
+  if (currentView !== 'foodie' || !pullWasAtBot) return;
+  const dy = e.touches[0].clientY - pullTouchY;
+  setPullState(dy > 20 ? 'pulling' : 'idle');
+}, { passive: true });
+
+document.addEventListener('touchend', e => {
+  if (currentView !== 'foodie' || !pullWasAtBot) return;
+  const dy = e.changedTouches[0].clientY - pullTouchY;
+  pullWasAtBot = false;
+  if (dy >= 80) {
+    doFoodieRefresh();
+  } else {
+    setPullState('idle');
+  }
+});
+
+// Mouse wheel — accumulate overscroll at the bottom
+let wheelAccum = 0;
+let wheelTimer = null;
+document.addEventListener('wheel', e => {
+  if (currentView !== 'foodie' || !lastFoodiePosts.length || foodiePullBar.dataset.state === 'refreshing') {
+    wheelAccum = 0;
+    return;
+  }
+  if (!isAtPageBottom() || e.deltaY <= 0) { wheelAccum = 0; return; }
+  wheelAccum += e.deltaY;
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => { wheelAccum = 0; setPullState('idle'); }, 600);
+  const ratio = Math.min(wheelAccum / 300, 1);
+  setPullState(ratio >= 1 ? 'pulling' : ratio > 0.2 ? 'pulling' : 'idle');
+  if (wheelAccum >= 300) {
+    wheelAccum = 0;
+    doFoodieRefresh();
+  }
+}, { passive: true });
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {

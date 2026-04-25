@@ -950,6 +950,39 @@ main {
   grid-column: 1 / -1;
 }
 
+/* ── Pull-to-refresh bar ─────────────────────────────── */
+#foodie-pull-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 0 8px;
+  color: #ccc;
+  font-size: 0.75rem;
+  font-weight: 600;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+#foodie-pull-icon {
+  font-size: 1rem;
+  display: inline-block;
+  transition: transform 0.25s;
+}
+
+#foodie-pull-bar[data-state="pulling"] {
+  color: #ff2442;
+}
+#foodie-pull-bar[data-state="pulling"] #foodie-pull-icon {
+  transform: rotate(180deg);
+}
+#foodie-pull-bar[data-state="refreshing"] {
+  color: #ff2442;
+}
+#foodie-pull-bar[data-state="refreshing"] #foodie-pull-icon {
+  animation: spin 0.7s linear infinite;
+}
+
 /* ── Mobile ──────────────────────────────────────────── */
 @media (max-width: 640px) {
   .filter-group.wide { min-width: 100%; }
