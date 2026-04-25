@@ -31,6 +31,7 @@ const scrPrev       = document.getElementById('scr-prev');
 const scrNext       = document.getElementById('scr-next');
 const locateBtn     = document.getElementById('locate-btn');
 const routeModal    = document.getElementById('route-modal');
+const routeFrame    = document.getElementById('route-frame');
 const routeMapEl    = document.getElementById('route-map');
 const routeInfoBar  = document.getElementById('route-info-bar');
 const routeClose    = document.getElementById('route-close');
@@ -449,6 +450,20 @@ async function fetchAndDrawRoute() {
   }
 }
 
+// Google Maps Embed API directions (used when map source = google)
+const GMAP_MODE = { driving: 'driving', walking: 'walking', transit: 'transit' };
+
+function loadGoogleRoute() {
+  const gmUrl = `https://www.google.com/maps/dir/${lastCenter.lat},${lastCenter.lng}/${routeDestLat},${routeDestLng}`;
+  routeFrame.src =
+    `https://www.google.com/maps/embed/v1/directions?key=${GAPI_KEY}` +
+    `&origin=${lastCenter.lat},${lastCenter.lng}` +
+    `&destination=${routeDestLat},${routeDestLng}` +
+    `&mode=${GMAP_MODE[routeMode]}`;
+  routeInfoBar.innerHTML =
+    `<a href="${gmUrl}" target="_blank" rel="noopener">Open in Google Maps ↗</a>`;
+}
+
 function openRouteModal(destLat, destLng, destName) {
   routeDestLat  = destLat;
   routeDestLng  = destLng;
@@ -457,19 +472,26 @@ function openRouteModal(destLat, destLng, destName) {
   routeModal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
-  if (!routeLeaflet) {
-    routeLeaflet = L.map(routeMapEl, { zoomControl: true })
-      .setView([lastCenter.lat, lastCenter.lng], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
-    }).addTo(routeLeaflet);
+  if (lastSource === 'google') {
+    routeMapEl.style.display  = 'none';
+    routeFrame.style.display  = 'block';
+    loadGoogleRoute();
+  } else {
+    routeFrame.style.display  = 'none';
+    routeMapEl.style.display  = 'block';
+    if (!routeLeaflet) {
+      routeLeaflet = L.map(routeMapEl, { zoomControl: true })
+        .setView([lastCenter.lat, lastCenter.lng], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(routeLeaflet);
+    }
+    setTimeout(() => {
+      routeLeaflet.invalidateSize();
+      fetchAndDrawRoute();
+    }, 80);
   }
-
-  setTimeout(() => {
-    routeLeaflet.invalidateSize();
-    fetchAndDrawRoute();
-  }, 80);
 }
 
 function closeRouteModal() {
@@ -485,7 +507,11 @@ modeBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     routeMode = btn.dataset.mode;
     modeBtns.forEach(b => b.classList.toggle('active', b === btn));
-    fetchAndDrawRoute();
+    if (lastSource === 'google') {
+      loadGoogleRoute();
+    } else {
+      fetchAndDrawRoute();
+    }
   });
 });
 

@@ -459,9 +459,12 @@ main {
 }
 .route-close:hover { color: #fff; background: rgba(255,255,255,0.1); }
 
-#route-map {
+#route-map,
+#route-frame {
   width: 100%;
   height: 340px;
+  border: none;
+  display: block;
 }
 
 #route-info-bar {
@@ -485,8 +488,9 @@ main {
 #route-info-bar a:hover { text-decoration: underline; }
 
 @media (max-width: 640px) {
-  .route-dialog { max-width: 100%; border-radius: 12px; }
-  #route-map    { height: 280px; }
+  .route-dialog       { max-width: 100%; border-radius: 12px; }
+  #route-map,
+  #route-frame        { height: 280px; }
 }
 
 /* ── Full-screen mode ────────────────────────────────── */
