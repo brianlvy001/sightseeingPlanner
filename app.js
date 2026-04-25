@@ -69,7 +69,6 @@ const TYPE_LABELS = {
 
 let currentView       = 'map-route';
 let lastFoodiePlaces  = [];
-let activeFoodieTab   = 'popular';
 let leafletMap   = null;
 let lastCenter   = null;
 let lastPlaces   = [];
@@ -600,7 +599,8 @@ viewTabs.forEach(tab => {
 
 // ── Foodie / RedNote renderer ─────────────────────────────────────────────────
 
-function buildFoodiePosts(places, tab) {
+function buildFoodiePosts(places) {
+  const now  = Date.now();
   const posts = [];
   places.forEach(place => {
     const reviews = place.reviews || [];
@@ -611,16 +611,16 @@ function buildFoodiePosts(places, tab) {
       const photoUrl = photoRef
         ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}`
         : '';
-      posts.push({ place, review, photoUrl, ts: new Date(review.publishTime || 0).getTime() });
+      const ts = new Date(review.publishTime || 0).getTime();
+      // Mix popular (60%) and recent (40%): recency decays over ~12 months
+      const ageMonths    = (now - ts) / (1000 * 60 * 60 * 24 * 30);
+      const recencyScore = Math.max(0, 1 - ageMonths / 12);
+      const score        = (review.rating || 0) / 5 * 0.6 + recencyScore * 0.4;
+      posts.push({ place, review, photoUrl, ts, score });
     });
   });
-
-  if (tab === 'latest') {
-    posts.sort((a, b) => b.ts - a.ts);
-  } else {
-    posts.sort((a, b) => (b.review.rating || 0) - (a.review.rating || 0) || b.ts - a.ts);
-  }
-  return posts.slice(0, 10);
+  posts.sort((a, b) => b.score - a.score);
+  return posts;
 }
 
 function rnStars(rating) {
@@ -632,7 +632,6 @@ function renderFoodieCards(places, type, source) {
   foodieTitle.textContent = TYPE_LABELS[type] || 'Top Places';
 
   if (source !== 'google') {
-    // OSM has no reviews — show a simple notice + place list
     foodieCount.textContent = `${places.length} place${places.length !== 1 ? 's' : ''}`;
     foodieList.innerHTML = places.map((p, i) => {
       const t       = p.tags;
@@ -649,36 +648,26 @@ function renderFoodieCards(places, type, source) {
         ${lastCenter ? `<button class="rn-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️</button>` : ''}
       </div>`;
     }).join('');
-  } else {
-    renderFoodieTab(activeFoodieTab);
+    wireRouteButtons();
+    foodieWrap.classList.remove('hidden');
     return;
   }
 
-  wireRouteButtons();
-  foodieWrap.classList.remove('hidden');
-}
-
-function renderFoodieTab(tab) {
-  activeFoodieTab = tab;
-  document.querySelectorAll('.foodie-tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.tab === tab)
-  );
-
-  const posts = buildFoodiePosts(lastFoodiePlaces, tab);
+  const posts = buildFoodiePosts(places);
   foodieCount.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
 
   if (posts.length === 0) {
     foodieList.innerHTML = '<p class="rn-empty">No reviews with text found. Try a different area.</p>';
   } else {
     foodieList.innerHTML = posts.map(({ place, review, photoUrl }) => {
-      const name       = place.displayName?.text || '';
-      const author     = review.authorAttribution?.displayName || 'Anonymous';
-      const avatarUrl  = review.authorAttribution?.photoUri || '';
-      const rating     = review.rating || 0;
-      const timeAgo    = review.relativePublishTimeDescription || '';
-      const text       = review.text?.text || '';
-      const destLat    = place.location.latitude;
-      const destLng    = place.location.longitude;
+      const name      = place.displayName?.text || '';
+      const author    = review.authorAttribution?.displayName || 'Anonymous';
+      const avatarUrl = review.authorAttribution?.photoUri || '';
+      const rating    = review.rating || 0;
+      const timeAgo   = review.relativePublishTimeDescription || '';
+      const text      = review.text?.text || '';
+      const destLat   = place.location.latitude;
+      const destLng   = place.location.longitude;
 
       return `<div class="rn-card">
         <div class="rn-photo-wrap">
@@ -716,12 +705,6 @@ function wireRouteButtons() {
     });
   });
 }
-
-// Foodie tab clicks
-document.addEventListener('click', e => {
-  const tab = e.target.closest('.foodie-tab');
-  if (tab && lastFoodiePlaces.length) renderFoodieTab(tab.dataset.tab);
-});
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
@@ -878,7 +861,7 @@ async function fetchGooglePlaces(center, type, withReviews = false) {
     p => p.location.latitude,
     p => p.location.longitude,
     center,
-  ).slice(0, 10);
+  );
 }
 
 // ── OSM / Overpass ────────────────────────────────────────────────────────────
@@ -900,7 +883,7 @@ async function fetchOsmPlaces(center, type) {
     p => p.lat ?? p.center?.lat,
     p => p.lon ?? p.center?.lon,
     center,
-  ).slice(0, 10);
+  );
 }
 
 function osmScore(p) {

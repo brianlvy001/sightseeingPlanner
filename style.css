@@ -766,30 +766,6 @@ main {
   margin-left: auto;
 }
 
-/* Tabs */
-.foodie-tabs {
-  display: flex;
-  gap: 0;
-  background: #f0f0f0;
-  border-radius: 20px;
-  padding: 3px;
-}
-
-.foodie-tab {
-  padding: 0.38rem 1rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 18px;
-  background: transparent;
-  color: #999;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  white-space: nowrap;
-}
-.foodie-tab.active { background: #ff2442; color: #fff; }
-.foodie-tab:not(.active):hover { color: #555; }
-
 /* Masonry grid */
 #foodie-list {
   columns: 2;
