@@ -110,7 +110,7 @@ function updateCarousel(instant = false) {
 
     if (instant) card.style.transition = 'none';
 
-    card.style.transform = `translateX(${tx}px) rotateY(${rotY}deg) translateZ(${tz}px)`;
+    card.style.transform = `translate3d(${tx}px, 0, 0) rotateY(${rotY}deg) translateZ(${tz}px)`;
     card.style.opacity   = String(opacity);
     card.style.zIndex    = String(zIndex);
 
@@ -243,15 +243,18 @@ scrNext.addEventListener('click', () => {
 });
 
 // ── Scrubber thumb drag ───────────────────────────────────────────────────────
-let scrDragging = false;
-let scrStartX   = 0;
-let scrStartIdx = 0;
+let scrDragging  = false;
+let scrStartX    = 0;
+let scrStartIdx  = 0;
+let scrRafId     = 0;
+let scrPendingIdx = -1;
 
 scrubberThumb.addEventListener('mousedown', e => {
   scrDragging = true;
   scrStartX   = e.clientX;
   scrStartIdx = carouselIdx;
   scrubberThumb.classList.add('dragging');
+  placesList.classList.add('is-scrubbing');
   e.preventDefault();
   e.stopPropagation();
 });
@@ -265,17 +268,25 @@ window.addEventListener('mousemove', e => {
   const newIdx     = Math.round(
     Math.max(0, Math.min(total - 1, scrStartIdx + (e.clientX - scrStartX) / pxPerStep))
   );
-  if (newIdx !== carouselIdx) {
-    carouselIdx = newIdx;
-    updateCarousel(true); // instant card repositioning while scrubbing
+  if (newIdx !== scrPendingIdx) {
+    scrPendingIdx = newIdx;
+    cancelAnimationFrame(scrRafId);
+    scrRafId = requestAnimationFrame(() => {
+      if (scrPendingIdx !== carouselIdx) {
+        carouselIdx = scrPendingIdx;
+        updateCarousel();
+      }
+    });
   }
 });
 
 window.addEventListener('mouseup', () => {
   if (!scrDragging) return;
   scrDragging = false;
+  cancelAnimationFrame(scrRafId);
+  placesList.classList.remove('is-scrubbing');
   scrubberThumb.classList.remove('dragging');
-  updateScrubber(); // snap thumb to exact position
+  updateScrubber();
 });
 
 // ── Scrubber track click (jump to position) ───────────────────────────────────
@@ -297,6 +308,7 @@ scrubberThumb.addEventListener('touchstart', e => {
   scrStartX   = e.touches[0].clientX;
   scrStartIdx = carouselIdx;
   scrubberThumb.classList.add('dragging');
+  placesList.classList.add('is-scrubbing');
 }, { passive: true });
 
 scrubberThumb.addEventListener('touchmove', e => {
@@ -308,14 +320,22 @@ scrubberThumb.addEventListener('touchmove', e => {
   const newIdx    = Math.round(
     Math.max(0, Math.min(total - 1, scrStartIdx + (e.touches[0].clientX - scrStartX) / pxPerStep))
   );
-  if (newIdx !== carouselIdx) {
-    carouselIdx = newIdx;
-    updateCarousel(true);
+  if (newIdx !== scrPendingIdx) {
+    scrPendingIdx = newIdx;
+    cancelAnimationFrame(scrRafId);
+    scrRafId = requestAnimationFrame(() => {
+      if (scrPendingIdx !== carouselIdx) {
+        carouselIdx = scrPendingIdx;
+        updateCarousel();
+      }
+    });
   }
 }, { passive: true });
 
 scrubberThumb.addEventListener('touchend', () => {
   scrDragging = false;
+  cancelAnimationFrame(scrRafId);
+  placesList.classList.remove('is-scrubbing');
   scrubberThumb.classList.remove('dragging');
   updateScrubber();
 });

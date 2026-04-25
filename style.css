@@ -205,7 +205,7 @@ main {
 /* ── Cover-Flow place card (album-cover style) ───────── */
 .place-card {
   position: absolute;
-  /* All cards share the same horizontal anchor — translateX in the
+  /* All cards share the same horizontal anchor — translate3d in the
      transform moves each one into its Cover-Flow position in 3D space. */
   left: 50%;
   top: 20px;
@@ -217,9 +217,16 @@ main {
   overflow: hidden;
   cursor: pointer;
   background: #222;
-  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+  will-change: transform;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
               opacity   0.5s ease;
   transform-origin: center center;
+}
+
+/* Shorter transition while scrubbing for a fluid, responsive feel */
+#places-list.is-scrubbing .place-card {
+  transition: transform 0.16s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity   0.16s ease;
 }
 
 /* Active: flat-facing, full reflection */
