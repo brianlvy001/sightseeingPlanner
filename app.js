@@ -437,7 +437,7 @@ async function fetchAndDrawRoute() {
       }),
     }).addTo(routeLeaflet).bindPopup(routeDestText).openPopup();
 
-    routeLeaflet.fitBounds(routePolyline.getBounds(), { padding: [70, 70] });
+    routeLeaflet.fitBounds(routePolyline.getBounds(), { padding: [40, 40] });
 
     const gmUrl = `https://www.google.com/maps/dir/${lastCenter.lat},${lastCenter.lng}/${routeDestLat},${routeDestLng}`;
     const modeNote = routeMode === 'transit' ? ' (driving — transit via ' : '';

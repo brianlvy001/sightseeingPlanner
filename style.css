@@ -401,8 +401,9 @@ main {
 .route-modal.hidden { display: none; }
 
 .route-dialog {
-  width: 100%;
-  max-width: 520px;
+  width: 90vw;
+  max-width: 900px;
+  max-height: 90vh;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -462,9 +463,10 @@ main {
 #route-map,
 #route-frame {
   width: 100%;
-  height: 340px;
+  height: 560px;
   border: none;
   display: block;
+  flex: 1 1 auto;
 }
 
 #route-info-bar {
@@ -488,9 +490,10 @@ main {
 #route-info-bar a:hover { text-decoration: underline; }
 
 @media (max-width: 640px) {
-  .route-dialog       { max-width: 100%; border-radius: 12px; }
+  .route-modal        { padding: 0.5rem; }
+  .route-dialog       { width: 100%; max-width: 100%; border-radius: 12px; }
   #route-map,
-  #route-frame        { height: 280px; }
+  #route-frame        { height: 65vh; }
 }
 
 /* ── Full-screen mode ────────────────────────────────── */
