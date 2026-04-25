@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=36" />
+  <link rel="stylesheet" href="style.css?v=37" />
 </head>
 <body>
   <header>
@@ -116,7 +116,23 @@
     </div>
   </main>
 
+  <!-- Route modal -->
+  <div id="route-modal" class="route-modal hidden" role="dialog" aria-modal="true">
+    <div class="route-dialog">
+      <div class="route-header">
+        <span class="route-title" id="route-dest-name">Route</span>
+        <div class="route-modes">
+          <button class="mode-btn active" data-mode="driving"  title="Driving">🚗</button>
+          <button class="mode-btn"        data-mode="walking"  title="Walking">🚶</button>
+          <button class="mode-btn"        data-mode="transit"  title="Transit">🚌</button>
+        </div>
+        <button id="route-close" class="route-close" aria-label="Close">&times;</button>
+      </div>
+      <iframe id="route-frame" allowfullscreen referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=37"></script>
+  <script src="app.js?v=38"></script>
 </body>
 </html>

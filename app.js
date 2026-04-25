@@ -30,6 +30,11 @@ const scrubberThumb = document.getElementById('scrubber-thumb');
 const scrPrev       = document.getElementById('scr-prev');
 const scrNext       = document.getElementById('scr-next');
 const locateBtn     = document.getElementById('locate-btn');
+const routeModal    = document.getElementById('route-modal');
+const routeFrame    = document.getElementById('route-frame');
+const routeClose    = document.getElementById('route-close');
+const routeDestName = document.getElementById('route-dest-name');
+const modeBtns      = document.querySelectorAll('.mode-btn');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -159,11 +164,16 @@ function updateActiveInfo(idx) {
     const rating = p.rating || 0;
     const count  = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
     const url    = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
-    activeName.textContent      = name;
-    activeFill.style.width      = (rating / 5 * 100).toFixed(0) + '%';
-    activeNum.textContent       = rating.toFixed(1);
-    activeCount.textContent     = count;
-    activeLinks.innerHTML       = `<a class="place-link" href="${url}" target="_blank" rel="noopener">Google Maps &rarr;</a>`;
+    const lat    = p.location?.latitude;
+    const lng    = p.location?.longitude;
+    activeName.textContent  = name;
+    activeFill.style.width  = (rating / 5 * 100).toFixed(0) + '%';
+    activeNum.textContent   = rating.toFixed(1);
+    activeCount.textContent = count;
+    activeLinks.innerHTML   = `<a class="place-link" href="${url}" target="_blank" rel="noopener">Google Maps &rarr;</a>`;
+    if (lat && lng) {
+      activeLinks.innerHTML += `<button class="route-btn" data-lat="${lat}" data-lng="${lng}" data-name="${escHtml(name)}">🗺️ Route</button>`;
+    }
   } else {
     const name     = p.tags?.name || '';
     const maxScore = lastPlaces[0]._score || 1;
@@ -179,7 +189,16 @@ function updateActiveInfo(idx) {
     activeNum.textContent   = score.toFixed(1);
     activeCount.textContent = '';
     activeLinks.innerHTML   = `<a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a>`
-      + (wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia</a>` : '');
+      + (wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia</a>` : '')
+      + (lat && lng ? `<button class="route-btn" data-lat="${lat}" data-lng="${lng}" data-name="${escHtml(name)}">🗺️ Route</button>` : '');
+  }
+
+  // Wire up the route button injected above
+  const routeBtn = activeLinks.querySelector('.route-btn');
+  if (routeBtn) {
+    routeBtn.addEventListener('click', () => {
+      openRouteModal(+routeBtn.dataset.lat, +routeBtn.dataset.lng, routeBtn.dataset.name);
+    });
   }
 }
 
@@ -355,6 +374,46 @@ fullscreenBtn.addEventListener('click', () => {
   fullscreenBtn.title       = isFs ? 'Exit full screen' : 'Full screen';
   document.body.style.overflow = isFs ? 'hidden' : '';
   setTimeout(() => updateCarousel(), 60);
+});
+
+// ── Route modal ───────────────────────────────────────────────────────────────
+let routeMode    = 'driving';
+let routeDestLat = null;
+let routeDestLng = null;
+
+function buildRouteUrl() {
+  if (!lastCenter || routeDestLat == null) return '';
+  return `https://www.google.com/maps/embed/v1/directions?key=${GAPI_KEY}` +
+    `&origin=${lastCenter.lat},${lastCenter.lng}` +
+    `&destination=${routeDestLat},${routeDestLng}` +
+    `&mode=${routeMode}`;
+}
+
+function openRouteModal(destLat, destLng, destName) {
+  routeDestLat = destLat;
+  routeDestLng = destLng;
+  routeDestName.textContent = `🗺️ Route to ${destName}`;
+  routeFrame.src = buildRouteUrl();
+  routeModal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRouteModal() {
+  routeModal.classList.add('hidden');
+  routeFrame.src = '';
+  document.body.style.overflow = '';
+}
+
+routeClose.addEventListener('click', closeRouteModal);
+routeModal.addEventListener('click', e => { if (e.target === routeModal) closeRouteModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRouteModal(); });
+
+modeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    routeMode = btn.dataset.mode;
+    modeBtns.forEach(b => b.classList.toggle('active', b === btn));
+    routeFrame.src = buildRouteUrl();
+  });
 });
 
 // ── Current location button ───────────────────────────────────────────────────
