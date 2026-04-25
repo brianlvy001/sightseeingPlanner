@@ -551,8 +551,9 @@ locateBtn.addEventListener('click', () => {
         );
         const data = await res.json();
         const a    = data.address || {};
+        const streetNumber = [a.house_number, a.road].filter(Boolean).join(' ');
         const label = [
-          a.neighbourhood || a.suburb,
+          streetNumber || a.neighbourhood || a.suburb,
           a.city || a.town || a.village || a.county,
           a.state,
         ].filter(Boolean).join(', ');
@@ -575,7 +576,7 @@ locateBtn.addEventListener('click', () => {
       };
       alert(msgs[err.code] || 'Could not get your location.');
     },
-    { timeout: 10000 }
+    { timeout: 30000, maximumAge: 60000, enableHighAccuracy: true }
   );
 });
 
