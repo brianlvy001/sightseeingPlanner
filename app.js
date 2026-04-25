@@ -887,7 +887,7 @@ async function doFoodieRefresh() {
       // Fetch next page of restaurants and append to pool
       const { places, nextPageToken } = await fetchFoodiePage(lastCenter, typeSelect.value, foodiePageToken);
       foodiePageToken = nextPageToken;
-      mergeFoodiePlaces(places, lastCenter);
+      mergeFoodiePlaces(places);
       batch = allFoodiePosts.slice(foodiePostOffset, foodiePostOffset + 100);
       foodiePostOffset += 100;
     } else {
@@ -1108,13 +1108,15 @@ async function fetchFoodiePage(center, type, pageToken = null) {
   };
 }
 
-// Merge new places into allFoodiePlaces, dedup by brand name, resort by score.
-function mergeFoodiePlaces(newPlaces, center) {
-  const existing = new Set(allFoodiePlaces.map(p => brandKey(p.displayName?.text || '')));
-  const fresh    = newPlaces.filter(p => !existing.has(brandKey(p.displayName?.text || '')));
-  allFoodiePlaces = [...allFoodiePlaces, ...fresh]
-    .sort((a, b) => placeScore(b) - placeScore(a));
-  allFoodiePosts  = buildFoodiePosts(allFoodiePlaces);
+// Append only genuinely new places and their posts — never rebuild the full pool.
+// Rebuilding would re-sort allFoodiePosts and make slice(offset, offset+100)
+// return posts the user already saw in a previous batch.
+function mergeFoodiePlaces(newPlaces) {
+  const seenKeys = new Set(allFoodiePlaces.map(p => brandKey(p.displayName?.text || '')));
+  const fresh    = newPlaces.filter(p => !seenKeys.has(brandKey(p.displayName?.text || '')));
+  if (!fresh.length) return;
+  allFoodiePlaces = [...allFoodiePlaces, ...fresh];
+  allFoodiePosts  = [...allFoodiePosts, ...buildFoodiePosts(fresh)];
 }
 
 // Init: first page fetch, show first 100 posts.
@@ -1126,7 +1128,7 @@ async function initFoodieFeed(center, type) {
 
   const { places, nextPageToken } = await fetchFoodiePage(center, type);
   foodiePageToken = nextPageToken;
-  mergeFoodiePlaces(places, center);
+  mergeFoodiePlaces(places.sort((a, b) => placeScore(b) - placeScore(a)));
 
   lastFoodiePosts = allFoodiePosts;
   const batch = allFoodiePosts.slice(0, 100);
