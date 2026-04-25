@@ -29,6 +29,7 @@ const scrubberTrack = document.getElementById('scrubber-track');
 const scrubberThumb = document.getElementById('scrubber-thumb');
 const scrPrev       = document.getElementById('scr-prev');
 const scrNext       = document.getElementById('scr-next');
+const locateBtn     = document.getElementById('locate-btn');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -347,6 +348,51 @@ fullscreenBtn.addEventListener('click', () => {
   fullscreenBtn.title       = isFs ? 'Exit full screen' : 'Full screen';
   document.body.style.overflow = isFs ? 'hidden' : '';
   setTimeout(() => updateCarousel(), 60);
+});
+
+// ── Current location button ───────────────────────────────────────────────────
+locateBtn.addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  locateBtn.classList.add('loading');
+  locateBtn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    async ({ coords }) => {
+      try {
+        const { latitude: lat, longitude: lon } = coords;
+        const res  = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`
+        );
+        const data = await res.json();
+        const a    = data.address || {};
+        const label = [
+          a.neighbourhood || a.suburb,
+          a.city || a.town || a.village || a.county,
+          a.state,
+        ].filter(Boolean).join(', ');
+        input.value = label || data.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        input.focus();
+      } catch {
+        input.value = `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`;
+      } finally {
+        locateBtn.classList.remove('loading');
+        locateBtn.disabled = false;
+      }
+    },
+    (err) => {
+      locateBtn.classList.remove('loading');
+      locateBtn.disabled = false;
+      const msgs = {
+        1: 'Location access denied. Please allow location permission and try again.',
+        2: 'Your position could not be determined.',
+        3: 'Location request timed out.',
+      };
+      alert(msgs[err.code] || 'Could not get your location.');
+    },
+    { timeout: 10000 }
+  );
 });
 
 // ── Form submit ───────────────────────────────────────────────────────────────
