@@ -56,9 +56,8 @@ const OVERPASS_QUERIES = {
   atm:              Q('amenity', 'atm'),
 };
 
-let leafletMap   = null;
-let googleSvcMap = null;
-let lastCenter   = null;
+let leafletMap = null;
+let lastCenter = null;
 let lastPlaces   = [];
 let lastSource   = null;
 let markers      = [];
@@ -136,30 +135,34 @@ async function geocodeNominatim(address) {
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
-// ── Google Places ─────────────────────────────────────────────────────────────
-function fetchGooglePlaces(center, type) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Google Places timed out. Check that the Places API is enabled in Google Cloud Console.')), 10000);
-    if (!googleSvcMap) {
-      googleSvcMap = new google.maps.Map(document.getElementById('attr'), { center: { lat: 0, lng: 0 }, zoom: 1 });
-    }
-    const service = new google.maps.places.PlacesService(googleSvcMap);
-    service.nearbySearch({ location: center, radius: RADIUS_M, type }, (places, status) => {
-      clearTimeout(timer);
-      const S = google.maps.places.PlacesServiceStatus;
-      if (status === S.OK) {
-        resolve(places.filter(p => p.rating != null).sort((a, b) => b.rating - a.rating).slice(0, 10));
-      } else if (status === S.ZERO_RESULTS) {
-        resolve([]);
-      } else if (status === S.REQUEST_DENIED) {
-        reject(new Error('Google Places API denied — enable billing at console.cloud.google.com/billing.'));
-      } else if (status === S.OVER_QUERY_LIMIT) {
-        reject(new Error('Google Places query limit reached. Try again in a moment.'));
-      } else {
-        reject(new Error(`Google Places error: ${status}`));
-      }
-    });
+// ── Google Places (New HTTP API) ──────────────────────────────────────────────
+const GAPI_KEY = 'AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo';
+
+async function fetchGooglePlaces(center, type) {
+  const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GAPI_KEY,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri',
+    },
+    body: JSON.stringify({
+      includedTypes: [type],
+      maxResultCount: 20,
+      locationRestriction: {
+        circle: { center: { latitude: center.lat, longitude: center.lng }, radius: RADIUS_M },
+      },
+      rankPreference: 'POPULARITY',
+    }),
   });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg = err.error?.message || res.statusText;
+    if (res.status === 403) throw new Error('Google Places denied — check billing and enable "Places API (New)" in Google Cloud Console.');
+    throw new Error(`Google Places error: ${msg}`);
+  }
+  const data = await res.json();
+  return (data.places || []).filter(p => p.rating != null).sort((a, b) => b.rating - a.rating).slice(0, 10);
 }
 
 // ── OSM / Overpass ────────────────────────────────────────────────────────────
@@ -201,19 +204,20 @@ function renderGoogleCards(places) {
   placesList.innerHTML = places.map((p, i) => {
     const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const stars   = renderStars(p.rating);
-    const count   = p.user_ratings_total ? `(${p.user_ratings_total.toLocaleString()})` : '';
-    const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${p.place_id}`;
+    const name    = p.displayName?.text || '';
+    const count   = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
+    const mapsUrl = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
     return `<div class="place-card" data-index="${i}">
       <div class="card-top">
         <div class="rank-badge ${badge}">${i + 1}</div>
-        <div class="place-name">${escHtml(p.name)}</div>
+        <div class="place-name">${escHtml(name)}</div>
       </div>
       <div class="place-rating">
         <span class="stars">${stars}</span>
         <span class="rating-num">${p.rating.toFixed(1)}</span>
         <span class="rating-count">${count}</span>
       </div>
-      ${p.vicinity ? `<div class="place-address">${escHtml(p.vicinity)}</div>` : ''}
+      ${p.formattedAddress ? `<div class="place-address">${escHtml(p.formattedAddress)}</div>` : ''}
       <div class="place-links">
         <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
       </div>
@@ -281,9 +285,9 @@ function renderLeaflet(center, places) {
   }).addTo(leafletMap);
 
   places.forEach((p, i) => {
-    const lat  = p.geometry ? p.geometry.location.lat() : (p.lat ?? p.center.lat);
-    const lng  = p.geometry ? p.geometry.location.lng() : (p.lon ?? p.center.lon);
-    const name = p.name || p.tags?.name || '';
+    const lat  = p.location ? p.location.latitude  : (p.lat ?? p.center?.lat);
+    const lng  = p.location ? p.location.longitude : (p.lon ?? p.center?.lon);
+    const name = p.displayName?.text || p.tags?.name || '';
     const extra = p.rating ? `<br>⭐ ${p.rating}` : '';
     const marker = L.marker([lat, lng]).addTo(leafletMap)
       .bindPopup(`<strong>${escHtml(name)}</strong>${extra}`);
@@ -304,7 +308,7 @@ function renderGoogleMap(center, places) {
   if (leafletMap) { leafletMap.remove(); leafletMap = null; }
   mapDiv.style.display    = 'none';
   gmapFrame.style.display = 'block';
-  const q = places.map(p => p.name || p.tags?.name).join(' OR ');
+  const q = places.map(p => p.displayName?.text || p.tags?.name).join(' OR ');
   gmapFrame.src = `https://www.google.com/maps?q=${encodeURIComponent(q)}&ll=${center.lat},${center.lng}&z=13&output=embed`;
 }
 
