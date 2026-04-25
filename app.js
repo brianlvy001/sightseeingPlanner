@@ -87,7 +87,7 @@ const FOODIE_TEXT_QUERIES = {
   korean_restaurant:     'korean restaurant',
 };
 
-let currentView       = 'map-route';
+let currentView       = 'foodie';
 let lastFoodiePlaces  = [];
 let foodiePool        = [];   // all posts from fetched pages
 let foodiePoolIdx     = 0;   // next index to display from pool

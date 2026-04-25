@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=50" />
+  <link rel="stylesheet" href="style.css?v=51" />
 </head>
 <body>
   <header>
     <h1>Explore Nearby</h1>
     <p class="subtitle">Discover top-rated places within 8 miles of any address</p>
     <div class="view-switcher">
-      <button class="view-tab active" data-view="map-route">🗺️ Map Route</button>
-      <button class="view-tab" data-view="foodie">🍜 Foodie</button>
+      <button class="view-tab" data-view="map-route">🗺️ Map Route</button>
+      <button class="view-tab active" data-view="foodie">🍜 Foodie</button>
     </div>
   </header>
 
@@ -44,7 +44,7 @@
           </optgroup>
         </select>
       </div>
-      <div class="filter-group" id="map-source-group">
+      <div class="filter-group" id="map-source-group" style="display:none">
         <label for="map-source">🗺️ Map Source</label>
         <select id="map-source">
           <option value="google">Google Maps</option>
@@ -168,6 +168,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=50"></script>
+  <script src="app.js?v=51"></script>
 </body>
 </html>
