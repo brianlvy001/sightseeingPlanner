@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=46" />
+  <link rel="stylesheet" href="style.css?v=47" />
 </head>
 <body>
   <header>
@@ -133,6 +133,28 @@
     </div>
   </main>
 
+  <!-- Post detail modal -->
+  <div id="post-modal" role="dialog" aria-modal="true">
+    <div class="post-topbar">
+      <button id="post-back" class="post-back" aria-label="Back">&#8592;</button>
+      <span id="post-topbar-name" class="post-topbar-name"></span>
+      <a id="post-maps-link" class="post-maps-link" target="_blank" rel="noopener">Maps ↗</a>
+    </div>
+    <div id="post-scroll" class="post-scroll">
+      <div id="post-gallery" class="post-gallery"></div>
+      <div class="post-body">
+        <div id="post-author-row" class="post-author-row"></div>
+        <p id="post-full-text" class="post-full-text"></p>
+      </div>
+      <div class="post-comments-section">
+        <div class="post-comments-hdr">
+          <span>💬</span><span id="post-comments-count">Comments</span>
+        </div>
+        <div id="post-comments-list" class="post-comments-list"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Route modal -->
   <div id="route-modal" class="route-modal hidden" role="dialog" aria-modal="true">
     <div class="route-dialog">
@@ -152,6 +174,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=46"></script>
+  <script src="app.js?v=47"></script>
 </body>
 </html>

@@ -43,9 +43,19 @@ const foodieWrap    = document.getElementById('foodie-wrap');
 const foodieList    = document.getElementById('foodie-list');
 const foodieTitle   = document.getElementById('foodie-title');
 const foodieCount   = document.getElementById('foodie-count');
-const foodiePullBar = document.getElementById('foodie-pull-bar');
+const foodiePullBar  = document.getElementById('foodie-pull-bar');
 const foodiePullIcon = document.getElementById('foodie-pull-icon');
 const foodiePullText = document.getElementById('foodie-pull-text');
+const postModal      = document.getElementById('post-modal');
+const postBack       = document.getElementById('post-back');
+const postTopbarName = document.getElementById('post-topbar-name');
+const postMapsLink   = document.getElementById('post-maps-link');
+const postGallery    = document.getElementById('post-gallery');
+const postScroll     = document.getElementById('post-scroll');
+const postAuthorRow  = document.getElementById('post-author-row');
+const postFullText   = document.getElementById('post-full-text');
+const postCommentsCount = document.getElementById('post-comments-count');
+const postCommentsList  = document.getElementById('post-comments-list');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -663,6 +673,7 @@ function renderFoodieCards(places, type, source) {
 }
 
 function renderPostCards(posts) {
+  foodieList._posts = posts;   // store for click handler lookup
   foodieCount.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
 
   if (posts.length === 0) {
@@ -715,6 +726,119 @@ function wireRouteButtons() {
     });
   });
 }
+
+// ── Post detail modal ─────────────────────────────────────────────────────────
+function openPostModal(post) {
+  const { place, review } = post;
+  const name      = place.displayName?.text || '';
+  const gmapsUrl  = place.googleMapsUri || '';
+  const author    = review.authorAttribution?.displayName || 'Anonymous';
+  const avatarUrl = review.authorAttribution?.photoUri   || '';
+  const reviewerUri = review.authorAttribution?.uri      || '';
+  const rating    = review.rating || 0;
+  const timeAgo   = review.relativePublishTimeDescription || '';
+  const text      = review.text?.text || '';
+
+  // Header
+  postTopbarName.textContent = name;
+  postMapsLink.href = gmapsUrl;
+  postMapsLink.style.display = gmapsUrl ? '' : 'none';
+
+  // Photo gallery — reviewer's photos first, then the rest
+  const allPhotos = place.photos || [];
+  const reviewerPhotos = allPhotos.filter(ph =>
+    ph.authorAttributions?.some(a => a.uri && reviewerUri && a.uri === reviewerUri)
+  );
+  const otherPhotos = allPhotos.filter(ph => !reviewerPhotos.includes(ph));
+  const orderedPhotos = [...reviewerPhotos, ...otherPhotos];
+
+  if (orderedPhotos.length === 0) {
+    postGallery.innerHTML = `<div class="post-gallery-placeholder">🍽️</div>`;
+  } else {
+    postGallery.innerHTML = orderedPhotos.map((ph, i) => {
+      const url = `https://places.googleapis.com/v1/${ph.name}/media?maxWidthPx=800&key=${GAPI_KEY}`;
+      const photoAuthor = ph.authorAttributions?.[0]?.displayName || '';
+      const isReviewer  = reviewerPhotos.includes(ph);
+      return `<img class="post-gallery-photo" src="${url}" loading="${i < 3 ? 'eager' : 'lazy'}"
+               alt="${escHtml(name)}" onerror="this.style.display='none'">`
+           + (isReviewer && photoAuthor ? `<div class="post-gallery-author">📷 ${escHtml(photoAuthor)}</div>` : '');
+    }).join('');
+  }
+
+  // Author row
+  const avatarHtml = avatarUrl
+    ? `<img class="post-avatar" src="${avatarUrl}" alt="${escHtml(author)}" referrerpolicy="no-referrer">`
+    : `<div class="post-avatar-fallback">${escHtml(author[0] || '?')}</div>`;
+  postAuthorRow.innerHTML = `
+    ${avatarHtml}
+    <div class="post-author-info">
+      <div class="post-author-name">${escHtml(author)}</div>
+      <div class="post-author-meta">
+        <span class="post-author-stars">${rnStars(rating)}</span>
+        &nbsp;·&nbsp; ${escHtml(timeAgo)}
+      </div>
+    </div>`;
+
+  // Full review text
+  postFullText.textContent = text;
+
+  // Comments — all other reviews of the same place
+  const comments = (place.reviews || []).filter(r =>
+    r.authorAttribution?.displayName !== author ||
+    r.relativePublishTimeDescription !== timeAgo
+  );
+  postCommentsCount.textContent = `Comments (${comments.length})`;
+
+  if (comments.length === 0) {
+    postCommentsList.innerHTML = '<p class="post-no-comments">No other reviews yet.</p>';
+  } else {
+    postCommentsList.innerHTML = comments.map(c => {
+      const cAuthor  = c.authorAttribution?.displayName || 'Anonymous';
+      const cAvatar  = c.authorAttribution?.photoUri    || '';
+      const cRating  = c.rating || 0;
+      const cTime    = c.relativePublishTimeDescription || '';
+      const cText    = c.text?.text || '';
+      const cAvHtml  = cAvatar
+        ? `<img class="post-comment-avatar" src="${cAvatar}" alt="${escHtml(cAuthor)}" referrerpolicy="no-referrer">`
+        : `<div class="post-comment-avatar-fallback">${escHtml(cAuthor[0] || '?')}</div>`;
+      return `<div class="post-comment">
+        ${cAvHtml}
+        <div class="post-comment-body">
+          <div class="post-comment-header">
+            <span class="post-comment-name">${escHtml(cAuthor)}</span>
+            <span class="post-comment-stars">${rnStars(cRating)}</span>
+            <span class="post-comment-time">${escHtml(cTime)}</span>
+          </div>
+          ${cText ? `<div class="post-comment-text">${escHtml(cText)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  postScroll.scrollTop = 0;
+  postModal.classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closePostModal() {
+  postModal.classList.remove('is-open');
+  document.body.style.overflow = '';
+}
+
+postBack.addEventListener('click', closePostModal);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && postModal.classList.contains('is-open')) closePostModal();
+});
+
+// Card click — open post detail
+document.addEventListener('click', e => {
+  const card = e.target.closest('.rn-card:not(.rn-osm)');
+  if (!card || e.target.closest('.rn-route-btn')) return;
+  const idx  = [...foodieList.querySelectorAll('.rn-card:not(.rn-osm)')].indexOf(card);
+  if (idx < 0) return;
+  const renderedPosts = foodieList._posts;
+  if (renderedPosts?.[idx]) openPostModal(renderedPosts[idx]);
+});
 
 // ── Pull-to-refresh at bottom (Foodie mode only) ──────────────────────────────
 function isAtPageBottom() {
@@ -920,7 +1044,7 @@ const FOOD_TYPES = new Set([
 ]);
 
 async function fetchGooglePlaces(center, type, withReviews = false) {
-  const baseFields = 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos.name';
+  const baseFields = 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos.name,places.photos.authorAttributions';
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
     method: 'POST',
     headers: {
