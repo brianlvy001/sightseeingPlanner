@@ -80,9 +80,23 @@ const TYPE_LABELS = {
   korean_restaurant:     'Top Korean Restaurants',
 };
 
+const FOODIE_TEXT_QUERIES = {
+  asian_restaurant:      'asian restaurant',
+  chinese_restaurant:    'chinese restaurant',
+  thai_restaurant:       'thai restaurant',
+  japanese_restaurant:   'japanese restaurant',
+  vietnamese_restaurant: 'vietnamese restaurant',
+  korean_restaurant:     'korean restaurant',
+};
+
 let currentView       = 'map-route';
 let lastFoodiePlaces  = [];
 let lastFoodiePosts   = [];
+// Paginated foodie state
+let allFoodiePlaces   = [];   // accumulated across pages
+let allFoodiePosts    = [];   // full sorted pool
+let foodiePageToken   = null; // next-page token from searchText
+let foodiePostOffset  = 0;    // next slice start
 let leafletMap   = null;
 let lastCenter   = null;
 let lastPlaces   = [];
@@ -860,20 +874,30 @@ function setPullState(state) {
   }
 }
 
-let foodieRefreshRank = 'DISTANCE'; // alternate each refresh to vary results
-
 async function doFoodieRefresh() {
   if (!lastCenter || foodiePullBar.dataset.state === 'refreshing') return;
   setPullState('refreshing');
   try {
-    // Alternate DISTANCE / POPULARITY so each refresh hits a different ranking order
-    const rank   = foodieRefreshRank;
-    foodieRefreshRank = rank === 'DISTANCE' ? 'POPULARITY' : 'DISTANCE';
-
-    const places = await fetchGooglePlaces(lastCenter, typeSelect.value, true, rank);
-    lastFoodiePlaces = places;
-    lastFoodiePosts  = buildFoodiePosts(places);
-    renderPostCards(lastFoodiePosts);
+    let batch;
+    if (foodiePostOffset < allFoodiePosts.length) {
+      // Still have unseen posts in current pool
+      batch = allFoodiePosts.slice(foodiePostOffset, foodiePostOffset + 100);
+      foodiePostOffset += 100;
+    } else if (foodiePageToken) {
+      // Fetch next page of restaurants and append to pool
+      const { places, nextPageToken } = await fetchFoodiePage(lastCenter, typeSelect.value, foodiePageToken);
+      foodiePageToken = nextPageToken;
+      mergeFoodiePlaces(places, lastCenter);
+      batch = allFoodiePosts.slice(foodiePostOffset, foodiePostOffset + 100);
+      foodiePostOffset += 100;
+    } else {
+      // Pool exhausted — wrap back to start
+      foodiePostOffset = 0;
+      batch = allFoodiePosts.slice(0, 100);
+      foodiePostOffset = 100;
+    }
+    lastFoodiePosts = batch;
+    renderPostCards(batch);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch {
     // keep existing posts on failure
@@ -945,33 +969,38 @@ form.addEventListener('submit', async (e) => {
   try {
     const center = await geocodeNominatim(address);
     setStatus('Fetching nearby places...');
-
-    const places = source === 'google'
-      ? await fetchGooglePlaces(center, type, currentView === 'foodie')
-      : await fetchOsmPlaces(center, type);
-
-    if (places.length === 0) {
-      showError('😕 No places found nearby.\nTry a different address or type!');
-      setStatus('No places found within 8 miles. Try a different address or type.', true);
-      return;
-    }
-
     lastCenter = center;
-    lastPlaces = places;
     lastSource = source;
 
-    setStatus(`Found ${places.length} place${places.length > 1 ? 's' : ''}`);
-
-    if (currentView === 'foodie') {
+    if (currentView === 'foodie' && source === 'google') {
       mapContainer.classList.add('hidden');
-      renderFoodieCards(places, type, source);
+      await initFoodieFeed(center, type);
+      setStatus(`Loaded posts from nearby ${TYPE_LABELS[type] || 'places'}`);
     } else {
-      panelTitle.textContent = TYPE_LABELS[type] || 'Top Places';
-      source === 'google' ? renderGoogleCards(places, type) : renderOsmCards(places);
-      carouselIdx = 0;
-      carouselWrap.classList.remove('hidden');
-      setTimeout(() => updateCarousel(true), 30);
-      source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
+      const places = source === 'google'
+        ? await fetchGooglePlaces(center, type)
+        : await fetchOsmPlaces(center, type);
+
+      if (places.length === 0) {
+        showError('😕 No places found nearby.\nTry a different address or type!');
+        setStatus('No places found within 8 miles. Try a different address or type.', true);
+        return;
+      }
+
+      lastPlaces = places;
+      setStatus(`Found ${places.length} place${places.length > 1 ? 's' : ''}`);
+
+      if (currentView === 'foodie') {
+        mapContainer.classList.add('hidden');
+        renderFoodieCards(places, type, source);  // OSM path
+      } else {
+        panelTitle.textContent = TYPE_LABELS[type] || 'Top Places';
+        source === 'google' ? renderGoogleCards(places, type) : renderOsmCards(places);
+        carouselIdx = 0;
+        carouselWrap.classList.remove('hidden');
+        setTimeout(() => updateCarousel(true), 30);
+        source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
+      }
     }
   } catch (err) {
     showError(err.message);
@@ -1041,6 +1070,70 @@ function deduplicateByName(places, getName, getLat, getLng, center) {
     }
   }
   return [...seen.values()];
+}
+
+// ── Foodie paginated fetch (searchText + nextPageToken) ──────────────────────
+const FOODIE_FIELDS =
+  'places.id,places.displayName,places.rating,places.userRatingCount,' +
+  'places.formattedAddress,places.location,places.googleMapsUri,' +
+  'places.photos.name,places.photos.authorAttributions,places.reviews';
+
+async function fetchFoodiePage(center, type, pageToken = null) {
+  const body = {
+    textQuery: FOODIE_TEXT_QUERIES[type] || type.replace(/_/g, ' '),
+    locationBias: {
+      circle: { center: { latitude: center.lat, longitude: center.lng }, radius: RADIUS_M },
+    },
+    pageSize: 20,
+  };
+  if (pageToken) body.pageToken = pageToken;
+
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GAPI_KEY,
+      'X-Goog-FieldMask': FOODIE_FIELDS,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Google Places error (${res.status}): ${err.error?.message || res.statusText}`);
+  }
+  const data = await res.json();
+  return {
+    places:        (data.places || []).filter(p => p.rating != null && p.userRatingCount != null),
+    nextPageToken: data.nextPageToken || null,
+  };
+}
+
+// Merge new places into allFoodiePlaces, dedup by brand name, resort by score.
+function mergeFoodiePlaces(newPlaces, center) {
+  const existing = new Set(allFoodiePlaces.map(p => brandKey(p.displayName?.text || '')));
+  const fresh    = newPlaces.filter(p => !existing.has(brandKey(p.displayName?.text || '')));
+  allFoodiePlaces = [...allFoodiePlaces, ...fresh]
+    .sort((a, b) => placeScore(b) - placeScore(a));
+  allFoodiePosts  = buildFoodiePosts(allFoodiePlaces);
+}
+
+// Init: first page fetch, show first 100 posts.
+async function initFoodieFeed(center, type) {
+  allFoodiePlaces  = [];
+  allFoodiePosts   = [];
+  foodiePageToken  = null;
+  foodiePostOffset = 0;
+
+  const { places, nextPageToken } = await fetchFoodiePage(center, type);
+  foodiePageToken = nextPageToken;
+  mergeFoodiePlaces(places, center);
+
+  lastFoodiePosts = allFoodiePosts;
+  const batch = allFoodiePosts.slice(0, 100);
+  foodiePostOffset = 100;
+  foodieTitle.textContent = TYPE_LABELS[type] || 'Top Places';
+  renderPostCards(batch);
+  foodieWrap.classList.remove('hidden');
 }
 
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────
