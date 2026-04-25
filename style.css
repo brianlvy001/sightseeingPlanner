@@ -151,21 +151,24 @@ main {
   height: 260px;
   overflow: visible;
   cursor: grab;
-  perspective: 900px;
-  perspective-origin: 50% 48%;
 }
 #carousel-track:active { cursor: grabbing; }
 
-/* Clips side bleed-over but allows reflection to show below */
+/* Perspective lives here so it applies to cards directly.
+   clip-path allows side bleed-over to be clipped horizontally
+   while the reflection can bleed 120px below. */
 #carousel-clip {
   position: absolute;
   inset: 0;
   clip-path: inset(0 0 -120px 0);
+  perspective: 1000px;
+  perspective-origin: 50% 40%;
 }
 
-/* Container for absolutely-positioned cards */
+/* Container for all cards — full width so left:50% centers each card */
 #places-list {
   position: relative;
+  width: 100%;
   height: 100%;
   user-select: none;
   -webkit-user-select: none;
@@ -202,7 +205,11 @@ main {
 /* ── Cover-Flow place card (album-cover style) ───────── */
 .place-card {
   position: absolute;
+  /* All cards share the same horizontal anchor — translateX in the
+     transform moves each one into its Cover-Flow position in 3D space. */
+  left: 50%;
   top: 20px;
+  margin-left: -100px;   /* half of 200px card width */
   width: 200px;
   height: 200px;
   border-radius: 8px;
@@ -210,9 +217,8 @@ main {
   overflow: hidden;
   cursor: pointer;
   background: #222;
-  transition: left   0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              transform 0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              opacity  0.44s ease;
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity   0.5s ease;
   transform-origin: center center;
 }
 
@@ -337,11 +343,14 @@ main {
 }
 #carousel-wrap.is-fullscreen #carousel-track {
   height: 52vh;
-  perspective: 1200px;
+}
+#carousel-wrap.is-fullscreen #carousel-clip {
+  perspective: 1400px;
 }
 #carousel-wrap.is-fullscreen .place-card {
   width: 300px;
   height: 300px;
+  margin-left: -150px;  /* half of 300px */
 }
 #carousel-wrap.is-fullscreen #active-name { font-size: 1.3rem; }
 #carousel-wrap.is-fullscreen .rating-track { max-width: 180px; }

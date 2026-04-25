@@ -90,43 +90,53 @@ function updateCarousel(instant = false) {
   const cards = Array.from(placesList.querySelectorAll('.place-card'));
   if (!cards.length) return;
 
-  const total  = cards.length;
-  const trackW = carouselTrack.offsetWidth;
-  const cw     = cardW();
-  const centerX = (trackW - cw) / 2;
+  const total = cards.length;
+  const cw    = cardW();
+
+  // Cover-Flow geometry (all in px, relative to the shared left:50% anchor):
+  //   Active  → translateX(0)  rotateY(0deg)   translateZ(0)
+  //   Left-N  → translateX(-X) rotateY(+60deg) translateZ(-200px)
+  //   Right-N → translateX(+X) rotateY(-60deg) translateZ(-200px)
+  // X grows with each step so that cards tightly overlap behind the active card.
+  const SIDE_ANGLE  = 60;   // rotateY degrees for all inactive cards
+  const SIDE_TZ     = -200; // depth pushed back (px)
+  const FIRST_STEP  = cw * 0.65; // offset of the direct neighbours from center
+  const EXTRA_STEP  = cw * 0.28; // additional offset per card further out
 
   cards.forEach((card, i) => {
-    const dist   = i - carouselIdx;
+    const dist    = i - carouselIdx;
     const absDist = Math.abs(dist);
-    const sign   = dist > 0 ? 1 : dist < 0 ? -1 : 0;
+    const sign    = dist > 0 ? 1 : dist < 0 ? -1 : 0;
 
-    let left, rotY, tz, opacity, zIndex;
+    let tx, rotY, tz, opacity, zIndex;
 
     if (dist === 0) {
-      left    = centerX;
+      // Active: flat, facing viewer, no depth
+      tx      = 0;
       rotY    = 0;
       tz      = 0;
       opacity = 1;
-      zIndex  = 20;
+      zIndex  = 100;
     } else {
-      // Tight Cover-Flow packing: first neighbour ~62% of card width from center,
-      // each additional neighbour adds ~16% (they stack behind each other)
-      const offset = cw * 0.62 + (absDist - 1) * cw * 0.16;
-      left    = centerX + sign * offset;
-      rotY    = sign * -55;
-      if (absDist >= 2) rotY = sign * -70;
-      tz      = absDist === 1 ? -90 : -180;
-      opacity = absDist === 1 ? 0.88 : absDist === 2 ? 0.55 : 0.22;
-      zIndex  = Math.max(0, 20 - absDist * 4);
+      // Left (sign=-1): rotateY(+60deg) — faces right, showing left art to viewer
+      // Right (sign=+1): rotateY(-60deg) — faces left
+      rotY    = sign * -SIDE_ANGLE;
+      tz      = SIDE_TZ;
+      // Each card is offset more than the previous so they stack tightly
+      tx      = sign * (FIRST_STEP + (absDist - 1) * EXTRA_STEP);
+      opacity = absDist === 1 ? 0.88 : absDist === 2 ? 0.6 : 0.28;
+      // Further cards have lower z-index → render behind closer ones
+      zIndex  = Math.max(0, 100 - absDist * 15);
     }
 
     if (instant) card.style.transition = 'none';
-    card.style.left      = left + 'px';
-    card.style.transform = `rotateY(${rotY}deg) translateZ(${tz}px)`;
-    card.style.opacity   = opacity;
-    card.style.zIndex    = zIndex;
+
+    card.style.transform = `translateX(${tx}px) rotateY(${rotY}deg) translateZ(${tz}px)`;
+    card.style.opacity   = String(opacity);
+    card.style.zIndex    = String(zIndex);
+
     if (instant) {
-      card.offsetHeight; // force reflow
+      card.offsetHeight; // force reflow before re-enabling transition
       card.style.transition = '';
     }
 
@@ -207,8 +217,7 @@ window.addEventListener('mouseup', e => {
   carouselTrack.style.cursor = 'grab';
   if (dragMoved) {
     const dx    = e.clientX - dragStartX;
-    const cw    = cardW();
-    const skip  = Math.max(1, Math.round(Math.abs(dx) / (cw * 0.5)));
+    const skip  = Math.max(1, Math.round(Math.abs(dx) / (cardW() * 0.5)));
     const cards = placesList.querySelectorAll('.place-card');
     if (dx < 0) carouselIdx = Math.min(cards.length - 1, carouselIdx + skip);
     else        carouselIdx = Math.max(0, carouselIdx - skip);
