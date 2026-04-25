@@ -454,13 +454,7 @@ async function fetchAndDrawRoute() {
 const GMAP_DIRFLG = { driving: 'd', walking: 'w', transit: 'r' };
 
 function routeZoomForDistance(lat1, lng1, lat2, lng2) {
-  const R    = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a    = Math.sin(dLat / 2) ** 2
-             + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
-             * Math.sin(dLng / 2) ** 2;
-  const km   = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const km = haversineKm(lat1, lng1, lat2, lng2);
   if (km < 1)  return 15;
   if (km < 3)  return 14;
   if (km < 7)  return 13;
@@ -654,6 +648,34 @@ function placeScore(p) {
   return p.rating * Math.log(p.userRatingCount + 1);
 }
 
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R    = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a    = Math.sin(dLat / 2) ** 2
+             + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+             * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Among places with the same name, keep the one closest to center.
+function deduplicateByName(places, getName, getLat, getLng, center) {
+  const seen = new Map();
+  for (const p of places) {
+    const key = getName(p).toLowerCase().trim();
+    if (!key) continue;
+    if (!seen.has(key)) {
+      seen.set(key, p);
+    } else {
+      const prev = seen.get(key);
+      const dPrev = haversineKm(center.lat, center.lng, getLat(prev), getLng(prev));
+      const dCurr = haversineKm(center.lat, center.lng, getLat(p),    getLng(p));
+      if (dCurr < dPrev) seen.set(key, p);
+    }
+  }
+  return [...seen.values()];
+}
+
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────
 const GAPI_KEY = 'AIzaSyBvQza0NnKLqOXtNvYOs1-lcPXT6ghWCXM';
 const FOOD_TYPES = new Set([
@@ -684,10 +706,16 @@ async function fetchGooglePlaces(center, type) {
     throw new Error(`Google Places error (${res.status}): ${msg}`);
   }
   const data = await res.json();
-  return (data.places || [])
+  const sorted = (data.places || [])
     .filter(p => p.rating != null && p.userRatingCount != null)
-    .sort((a, b) => placeScore(b) - placeScore(a))
-    .slice(0, 10);
+    .sort((a, b) => placeScore(b) - placeScore(a));
+  return deduplicateByName(
+    sorted,
+    p => p.displayName?.text || '',
+    p => p.location.latitude,
+    p => p.location.longitude,
+    center,
+  ).slice(0, 10);
 }
 
 // ── OSM / Overpass ────────────────────────────────────────────────────────────
@@ -699,11 +727,17 @@ async function fetchOsmPlaces(center, type) {
   });
   if (!res.ok) throw new Error('Failed to fetch places. Please try again.');
   const data = await res.json();
-  return data.elements
+  const sorted = data.elements
     .filter(el => el.tags?.name && (el.lat ?? el.center?.lat))
     .map(p => ({ ...p, _score: osmScore(p) }))
-    .sort((a, b) => b._score - a._score)
-    .slice(0, 10);
+    .sort((a, b) => b._score - a._score);
+  return deduplicateByName(
+    sorted,
+    p => p.tags.name,
+    p => p.lat ?? p.center?.lat,
+    p => p.lon ?? p.center?.lon,
+    center,
+  ).slice(0, 10);
 }
 
 function osmScore(p) {
