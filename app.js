@@ -144,7 +144,7 @@ async function fetchGooglePlaces(center, type) {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': GAPI_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos',
     },
     body: JSON.stringify({
       includedTypes: [type],
@@ -201,16 +201,16 @@ function osmScore(p) {
 // ── Card renderers ────────────────────────────────────────────────────────────
 function renderGoogleCards(places) {
   placesList.innerHTML = places.map((p, i) => {
-    const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const stars   = renderStars(p.rating);
-    const name    = p.displayName?.text || '';
-    const count   = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
-    const mapsUrl = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+    const badge    = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const stars    = renderStars(p.rating);
+    const name     = p.displayName?.text || '';
+    const count    = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
+    const mapsUrl  = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+    const photoRef = p.photos?.[0]?.name;
+    const photoUrl = photoRef ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}` : '';
     return `<div class="place-card" data-index="${i}">
-      <div class="card-top">
-        <div class="rank-badge ${badge}">${i + 1}</div>
-        <div class="place-name">${escHtml(name)}</div>
-      </div>
+      ${photoUrl ? `<div class="card-photo-wrap"><img class="card-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.parentElement.remove()"><div class="rank-badge ${badge} badge-over">${i + 1}</div></div>` : `<div class="card-top"><div class="rank-badge ${badge}">${i + 1}</div><div class="place-name">${escHtml(name)}</div></div>`}
+      ${photoUrl ? `<div class="card-body"><div class="place-name">${escHtml(name)}</div>` : '<div class="card-body">'}
       <div class="place-rating">
         <span class="stars">${stars}</span>
         <span class="rating-num">${p.rating.toFixed(1)}</span>
@@ -219,6 +219,7 @@ function renderGoogleCards(places) {
       ${p.formattedAddress ? `<div class="place-address">${escHtml(p.formattedAddress)}</div>` : ''}
       <div class="place-links">
         <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
+      </div>
       </div>
     </div>`;
   }).join('');
