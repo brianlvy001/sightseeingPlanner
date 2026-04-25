@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=31" />
+  <link rel="stylesheet" href="style.css?v=32" />
 </head>
 <body>
   <header>
@@ -60,6 +60,14 @@
           <button id="carousel-prev" class="carousel-btn" aria-label="Previous">&#10094;</button>
           <button id="carousel-next" class="carousel-btn" aria-label="Next">&#10095;</button>
         </div>
+        <div id="scrubber-bar">
+          <button id="scr-prev" class="scrubber-arrow" aria-label="Previous">&#10094;</button>
+          <div id="scrubber-track">
+            <div id="scrubber-thumb"></div>
+          </div>
+          <button id="scr-next" class="scrubber-arrow" aria-label="Next">&#10095;</button>
+        </div>
+
         <div id="active-info">
           <div id="active-name"></div>
           <div id="active-meta">
@@ -100,6 +108,6 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=32"></script>
+  <script src="app.js?v=33"></script>
 </body>
 </html>

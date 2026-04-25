@@ -25,6 +25,10 @@ const activeNum     = document.getElementById('active-num');
 const activeCount   = document.getElementById('active-count');
 const activeLinks   = document.getElementById('active-links');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
+const scrubberTrack = document.getElementById('scrubber-track');
+const scrubberThumb = document.getElementById('scrubber-thumb');
+const scrPrev       = document.getElementById('scr-prev');
+const scrNext       = document.getElementById('scr-next');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -124,6 +128,20 @@ function updateCarousel(instant = false) {
   carouselNext.disabled = carouselIdx >= total - 1;
   carouselCount.textContent = `${carouselIdx + 1} of ${total}`;
   updateActiveInfo(carouselIdx);
+  updateScrubber();
+}
+
+function updateScrubber() {
+  const total  = placesList.querySelectorAll('.place-card').length;
+  const thumbW = scrubberThumb.offsetWidth;
+  const travel = scrubberTrack.offsetWidth - thumbW;
+
+  scrubberThumb.style.left = total > 1
+    ? (carouselIdx / (total - 1)) * travel + 'px'
+    : '0px';
+
+  scrPrev.disabled = carouselIdx === 0;
+  scrNext.disabled = carouselIdx >= total - 1;
 }
 
 function updateActiveInfo(idx) {
@@ -212,6 +230,95 @@ carouselTrack.addEventListener('touchend', e => {
     updateCarousel();
   }
 }, { passive: true });
+
+// ── Scrubber arrows ───────────────────────────────────────────────────────────
+scrPrev.addEventListener('click', () => {
+  carouselIdx = Math.max(0, carouselIdx - 1);
+  updateCarousel();
+});
+scrNext.addEventListener('click', () => {
+  const total = placesList.querySelectorAll('.place-card').length;
+  carouselIdx = Math.min(total - 1, carouselIdx + 1);
+  updateCarousel();
+});
+
+// ── Scrubber thumb drag ───────────────────────────────────────────────────────
+let scrDragging = false;
+let scrStartX   = 0;
+let scrStartIdx = 0;
+
+scrubberThumb.addEventListener('mousedown', e => {
+  scrDragging = true;
+  scrStartX   = e.clientX;
+  scrStartIdx = carouselIdx;
+  scrubberThumb.classList.add('dragging');
+  e.preventDefault();
+  e.stopPropagation();
+});
+
+window.addEventListener('mousemove', e => {
+  if (!scrDragging) return;
+  const total  = placesList.querySelectorAll('.place-card').length;
+  if (total <= 1) return;
+  const travel     = scrubberTrack.offsetWidth - scrubberThumb.offsetWidth;
+  const pxPerStep  = travel / (total - 1);
+  const newIdx     = Math.round(
+    Math.max(0, Math.min(total - 1, scrStartIdx + (e.clientX - scrStartX) / pxPerStep))
+  );
+  if (newIdx !== carouselIdx) {
+    carouselIdx = newIdx;
+    updateCarousel(true); // instant card repositioning while scrubbing
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  if (!scrDragging) return;
+  scrDragging = false;
+  scrubberThumb.classList.remove('dragging');
+  updateScrubber(); // snap thumb to exact position
+});
+
+// ── Scrubber track click (jump to position) ───────────────────────────────────
+scrubberTrack.addEventListener('click', e => {
+  if (scrDragging) return;
+  const total  = placesList.querySelectorAll('.place-card').length;
+  if (total <= 1) return;
+  const rect   = scrubberTrack.getBoundingClientRect();
+  const thumbW = scrubberThumb.offsetWidth;
+  const travel = rect.width - thumbW;
+  const pct    = Math.max(0, Math.min(1, (e.clientX - rect.left - thumbW / 2) / travel));
+  carouselIdx  = Math.round(pct * (total - 1));
+  updateCarousel();
+});
+
+// ── Scrubber touch support ────────────────────────────────────────────────────
+scrubberThumb.addEventListener('touchstart', e => {
+  scrDragging = true;
+  scrStartX   = e.touches[0].clientX;
+  scrStartIdx = carouselIdx;
+  scrubberThumb.classList.add('dragging');
+}, { passive: true });
+
+scrubberThumb.addEventListener('touchmove', e => {
+  if (!scrDragging) return;
+  const total = placesList.querySelectorAll('.place-card').length;
+  if (total <= 1) return;
+  const travel    = scrubberTrack.offsetWidth - scrubberThumb.offsetWidth;
+  const pxPerStep = travel / (total - 1);
+  const newIdx    = Math.round(
+    Math.max(0, Math.min(total - 1, scrStartIdx + (e.touches[0].clientX - scrStartX) / pxPerStep))
+  );
+  if (newIdx !== carouselIdx) {
+    carouselIdx = newIdx;
+    updateCarousel(true);
+  }
+}, { passive: true });
+
+scrubberThumb.addEventListener('touchend', () => {
+  scrDragging = false;
+  scrubberThumb.classList.remove('dragging');
+  updateScrubber();
+});
 
 // ── Fullscreen toggle ─────────────────────────────────────────────────────────
 fullscreenBtn.addEventListener('click', () => {
