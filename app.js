@@ -1,67 +1,97 @@
 const RADIUS_M = 12874; // 8 miles
 
-const form           = document.getElementById('search-form');
-const input          = document.getElementById('address-input');
-const typeSelect     = document.getElementById('type-select');
-const mapSource      = document.getElementById('map-source');
-const statusEl       = document.getElementById('status');
-const mapDiv       = document.getElementById('map');
-const gmapFrame    = document.getElementById('gmap');
-const mapContainer = document.getElementById('map-container');
-const phLoading    = document.getElementById('ph-loading');
-const phError      = document.getElementById('ph-error');
-const phMsg        = document.getElementById('ph-msg');
-const content      = document.getElementById('content');
-const placesPanel  = document.getElementById('places-panel');
-const placesList   = document.getElementById('places-list');
-const panelTitle   = document.getElementById('panel-title');
+const form          = document.getElementById('search-form');
+const input         = document.getElementById('address-input');
+const typeSelect    = document.getElementById('type-select');
+const mapSource     = document.getElementById('map-source');
+const statusEl      = document.getElementById('status');
+const mapDiv        = document.getElementById('map');
+const gmapFrame     = document.getElementById('gmap');
+const mapContainer  = document.getElementById('map-container');
+const phLoading     = document.getElementById('ph-loading');
+const phError       = document.getElementById('ph-error');
+const phMsg         = document.getElementById('ph-msg');
+const carouselWrap  = document.getElementById('carousel-wrap');
+const carouselTrack = document.getElementById('carousel-track');
+const carouselPrev  = document.getElementById('carousel-prev');
+const carouselNext  = document.getElementById('carousel-next');
+const carouselCount = document.getElementById('carousel-counter');
+const placesList    = document.getElementById('places-list');
+const panelTitle    = document.getElementById('panel-title');
 
 const Q = (tag, val) =>
   `(node["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG); way["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG););`;
 
 const OVERPASS_QUERIES = {
-  // Sightseeing
-  museum:           Q('tourism', 'museum'),
-  park:             Q('leisure', 'park'),
-  art_gallery:      Q('tourism', 'gallery'),
-  zoo:              Q('tourism', 'zoo'),
-  aquarium:         Q('tourism', 'aquarium'),
-  amusement_park:   Q('tourism', 'theme_park'),
+  museum:             Q('tourism', 'museum'),
+  park:               Q('leisure', 'park'),
+  art_gallery:        Q('tourism', 'gallery'),
+  zoo:                Q('tourism', 'zoo'),
+  aquarium:           Q('tourism', 'aquarium'),
+  amusement_park:     Q('tourism', 'theme_park'),
   tourist_attraction: `(node["tourism"="attraction"]["name"](around:${RADIUS_M},LAT,LNG); way["tourism"="attraction"]["name"](around:${RADIUS_M},LAT,LNG); node["historic"]["name"](around:${RADIUS_M},LAT,LNG); way["historic"]["name"](around:${RADIUS_M},LAT,LNG););`,
-  // Food & Drink
-  restaurant:       Q('amenity', 'restaurant'),
-  cafe:             Q('amenity', 'cafe'),
-  bar:              Q('amenity', 'bar'),
-  bakery:           Q('amenity', 'bakery'),
-  // Entertainment
-  movie_theater:    Q('amenity', 'cinema'),
-  night_club:       Q('amenity', 'nightclub'),
-  bowling_alley:    Q('amenity', 'bowling_alley'),
-  // Shopping
-  shopping_mall:    Q('shop', 'mall'),
-  supermarket:      Q('shop', 'supermarket'),
-  clothing_store:   Q('shop', 'clothes'),
-  book_store:       Q('shop', 'books'),
-  // Health & Wellness
-  hospital:         Q('amenity', 'hospital'),
-  pharmacy:         Q('amenity', 'pharmacy'),
-  gym:              Q('leisure', 'fitness_centre'),
-  spa:              Q('leisure', 'spa'),
-  // Travel
-  lodging:          Q('tourism', 'hotel'),
-  gas_station:      Q('amenity', 'fuel'),
-  car_rental:       Q('amenity', 'car_rental'),
-  // Finance
-  bank:             Q('amenity', 'bank'),
-  atm:              Q('amenity', 'atm'),
+  restaurant:         Q('amenity', 'restaurant'),
+  cafe:               Q('amenity', 'cafe'),
+  bar:                Q('amenity', 'bar'),
+  bakery:             Q('amenity', 'bakery'),
+  movie_theater:      Q('amenity', 'cinema'),
+  night_club:         Q('amenity', 'nightclub'),
+  bowling_alley:      Q('amenity', 'bowling_alley'),
+  shopping_mall:      Q('shop', 'mall'),
+  supermarket:        Q('shop', 'supermarket'),
+  clothing_store:     Q('shop', 'clothes'),
+  book_store:         Q('shop', 'books'),
+  hospital:           Q('amenity', 'hospital'),
+  pharmacy:           Q('amenity', 'pharmacy'),
+  gym:                Q('leisure', 'fitness_centre'),
+  spa:                Q('leisure', 'spa'),
+  lodging:            Q('tourism', 'hotel'),
+  gas_station:        Q('amenity', 'fuel'),
+  car_rental:         Q('amenity', 'car_rental'),
+  bank:               Q('amenity', 'bank'),
+  atm:                Q('amenity', 'atm'),
+};
+
+const TYPE_LABELS = {
+  museum: 'Top Museums', park: 'Top Parks', art_gallery: 'Top Art Galleries',
+  zoo: 'Top Zoos', aquarium: 'Top Aquariums', amusement_park: 'Top Amusement Parks',
+  tourist_attraction: 'Top Attractions',
+  restaurant: 'Top Restaurants', cafe: 'Top Cafes', bar: 'Top Bars', bakery: 'Top Bakeries',
+  movie_theater: 'Top Movie Theaters', night_club: 'Top Night Clubs', bowling_alley: 'Top Bowling Alleys',
+  shopping_mall: 'Top Shopping Malls', supermarket: 'Top Supermarkets',
+  clothing_store: 'Top Clothing Stores', book_store: 'Top Book Stores',
+  hospital: 'Nearby Hospitals', pharmacy: 'Nearby Pharmacies', gym: 'Top Gyms', spa: 'Top Spas',
+  lodging: 'Top Hotels', gas_station: 'Nearby Gas Stations', car_rental: 'Top Car Rentals',
+  bank: 'Nearby Banks', atm: 'Nearby ATMs',
 };
 
 let leafletMap = null;
 let lastCenter = null;
-let lastPlaces   = [];
-let lastSource   = null;
-let markers      = [];
+let lastPlaces = [];
+let lastSource = null;
+let markers    = [];
+let carouselIdx = 0;
 
+// ── Carousel navigation ───────────────────────────────────────────────────────
+function updateCarousel() {
+  const cards = placesList.querySelectorAll('.place-card');
+  if (!cards.length) return;
+  const gap  = 12;
+  const cardW = cards[0].offsetWidth + gap;
+  const visible = Math.max(1, Math.floor((carouselTrack.offsetWidth + gap) / cardW));
+  const maxIdx  = Math.max(0, cards.length - visible);
+  carouselIdx   = Math.min(carouselIdx, maxIdx);
+  placesList.style.transform = `translateX(-${carouselIdx * cardW}px)`;
+  carouselPrev.disabled = carouselIdx === 0;
+  carouselNext.disabled = carouselIdx >= maxIdx;
+  carouselCount.textContent = `${carouselIdx + 1}–${Math.min(carouselIdx + visible, cards.length)} of ${cards.length}`;
+}
+
+carouselPrev.addEventListener('click', () => { carouselIdx = Math.max(0, carouselIdx - 1); updateCarousel(); });
+carouselNext.addEventListener('click', () => { carouselIdx++; updateCarousel(); });
+window.addEventListener('resize', updateCarousel);
+
+// ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const address = input.value.trim();
@@ -70,8 +100,7 @@ form.addEventListener('submit', async (e) => {
   if (!address) return;
 
   setStatus('Locating address...');
-  content.classList.remove('has-results');
-  placesPanel.classList.add('hidden');
+  carouselWrap.classList.add('hidden');
   showLoading();
   form.querySelector('button').disabled = true;
 
@@ -93,23 +122,14 @@ form.addEventListener('submit', async (e) => {
     lastPlaces = places;
     lastSource = source;
 
-    const TYPE_LABELS = {
-      museum: 'Top Museums', park: 'Top Parks', art_gallery: 'Top Art Galleries',
-      zoo: 'Top Zoos', aquarium: 'Top Aquariums', amusement_park: 'Top Amusement Parks',
-      tourist_attraction: 'Top Attractions',
-      restaurant: 'Top Restaurants', cafe: 'Top Cafes', bar: 'Top Bars', bakery: 'Top Bakeries',
-      movie_theater: 'Top Movie Theaters', night_club: 'Top Night Clubs', bowling_alley: 'Top Bowling Alleys',
-      shopping_mall: 'Top Shopping Malls', supermarket: 'Top Supermarkets',
-      clothing_store: 'Top Clothing Stores', book_store: 'Top Book Stores',
-      hospital: 'Nearby Hospitals', pharmacy: 'Nearby Pharmacies', gym: 'Top Gyms', spa: 'Top Spas',
-      lodging: 'Top Hotels', gas_station: 'Nearby Gas Stations', car_rental: 'Top Car Rentals',
-      bank: 'Nearby Banks', atm: 'Nearby ATMs',
-    };
     panelTitle.textContent = TYPE_LABELS[type] || 'Top Places';
     setStatus(`Found ${places.length} place${places.length > 1 ? 's' : ''}`);
     source === 'google' ? renderGoogleCards(places, type) : renderOsmCards(places);
-    placesPanel.classList.remove('hidden');
-    content.classList.add('has-results');
+
+    carouselIdx = 0;
+    carouselWrap.classList.remove('hidden');
+    setTimeout(updateCarousel, 50);
+
     source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
   } catch (err) {
     showError(err.message);
@@ -137,6 +157,7 @@ async function geocodeNominatim(address) {
 
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────
 const GAPI_KEY = 'AIzaSyBvQza0NnKLqOXtNvYOs1-lcPXT6ghWCXM';
+const FOOD_TYPES = new Set(['restaurant', 'cafe', 'bar', 'bakery']);
 
 async function fetchGooglePlaces(center, type) {
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
@@ -166,13 +187,13 @@ async function fetchGooglePlaces(center, type) {
 
 // ── OSM / Overpass ────────────────────────────────────────────────────────────
 async function fetchOsmPlaces(center, type) {
-  const body  = OVERPASS_QUERIES[type].replace(/LAT/g, center.lat).replace(/LNG/g, center.lng);
-  const res   = await fetch('https://overpass-api.de/api/interpreter', {
+  const body = OVERPASS_QUERIES[type].replace(/LAT/g, center.lat).replace(/LNG/g, center.lng);
+  const res  = await fetch('https://overpass-api.de/api/interpreter', {
     method: 'POST',
     body:   'data=' + encodeURIComponent(`[out:json][timeout:25];\n${body}\nout center 80;`),
   });
   if (!res.ok) throw new Error('Failed to fetch places. Please try again.');
-  const data  = await res.json();
+  const data = await res.json();
   return data.elements
     .filter(el => el.tags?.name && (el.lat ?? el.center?.lat))
     .map(p => ({ ...p, _score: osmScore(p) }))
@@ -199,30 +220,38 @@ function osmScore(p) {
 }
 
 // ── Card renderers ────────────────────────────────────────────────────────────
-const FOOD_TYPES = new Set(['restaurant', 'cafe', 'bar', 'bakery']);
-
 function renderGoogleCards(places, type) {
   placesList.innerHTML = places.map((p, i) => {
-    const badge    = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const stars    = renderStars(p.rating);
-    const name     = p.displayName?.text || '';
-    const count    = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
-    const mapsUrl  = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+    const badge      = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const name       = p.displayName?.text || '';
+    const stars      = renderStars(p.rating);
+    const count      = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
+    const mapsUrl    = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
     const photoIndex = FOOD_TYPES.has(type) ? 1 : 0;
-    const photoRef = (p.photos?.[photoIndex] ?? p.photos?.[0])?.name;
-    const photoUrl = photoRef ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}` : '';
+    const photoRef   = (p.photos?.[photoIndex] ?? p.photos?.[0])?.name;
+    const photoUrl   = photoRef ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}` : '';
     return `<div class="place-card" data-index="${i}">
-      ${photoUrl ? `<div class="card-photo-wrap"><img class="card-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.parentElement.remove()"><div class="rank-badge ${badge} badge-over">${i + 1}</div></div>` : `<div class="card-top"><div class="rank-badge ${badge}">${i + 1}</div><div class="place-name">${escHtml(name)}</div></div>`}
-      ${photoUrl ? `<div class="card-body"><div class="place-name">${escHtml(name)}</div>` : '<div class="card-body">'}
-      <div class="place-rating">
-        <span class="stars">${stars}</span>
-        <span class="rating-num">${p.rating.toFixed(1)}</span>
-        <span class="rating-count">${count}</span>
-      </div>
-      ${p.formattedAddress ? `<div class="place-address">${escHtml(p.formattedAddress)}</div>` : ''}
-      <div class="place-links">
-        <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
-      </div>
+      ${photoUrl
+        ? `<div class="card-photo-wrap">
+             <img class="card-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.parentElement.remove()">
+             <div class="rank-badge ${badge} badge-over">${i + 1}</div>
+           </div>
+           <div class="card-body">
+             <div class="place-name">${escHtml(name)}</div>`
+        : `<div class="card-top">
+             <div class="rank-badge ${badge}">${i + 1}</div>
+             <div class="place-name">${escHtml(name)}</div>
+           </div>
+           <div class="card-body">`}
+        <div class="place-rating">
+          <span class="stars">${stars}</span>
+          <span class="rating-num">${p.rating.toFixed(1)}</span>
+          <span class="rating-count">${count}</span>
+        </div>
+        ${p.formattedAddress ? `<div class="place-address">${escHtml(p.formattedAddress)}</div>` : ''}
+        <div class="place-links">
+          <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -247,14 +276,16 @@ function renderOsmCards(places) {
         <div class="rank-badge ${badge}">${i + 1}</div>
         <div class="place-name">${escHtml(p.tags.name)}</div>
       </div>
-      ${type ? `<div class="place-type">${escHtml(type)}</div>` : ''}
-      <div class="place-rating">
-        <span class="stars">${stars}</span>
-        <span class="rating-num">${score.toFixed(1)}</span>
-      </div>
-      <div class="place-links">
-        <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps</a>
-        ${wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>` : ''}
+      <div class="card-body">
+        ${type ? `<div class="place-type">${escHtml(type)}</div>` : ''}
+        <div class="place-rating">
+          <span class="stars">${stars}</span>
+          <span class="rating-num">${score.toFixed(1)}</span>
+        </div>
+        <div class="place-links">
+          <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps</a>
+          ${wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>` : ''}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -262,9 +293,8 @@ function renderOsmCards(places) {
 }
 
 function attachCardClicks() {
-  placesList.querySelectorAll('.place-card').forEach(card => {
+  placesList.querySelectorAll('.place-card').forEach((card, i) => {
     card.addEventListener('click', () => {
-      const i = parseInt(card.dataset.index);
       placesList.querySelectorAll('.place-card').forEach(c => c.classList.remove('active'));
       card.classList.add('active');
       if (leafletMap && markers[i]) { markers[i].openPopup(); leafletMap.panTo(markers[i].getLatLng()); }
@@ -340,11 +370,10 @@ function hidePlaceholders() {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function renderStars(rating) {
-  const v     = Math.min(5, Math.max(0, rating));
-  const full  = Math.floor(v);
-  const half  = (v - full) >= 0.5 ? 1 : 0;
-  const empty = 5 - full - half;
-  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+  const v    = Math.min(5, Math.max(0, rating));
+  const full = Math.floor(v);
+  const half = (v - full) >= 0.5 ? 1 : 0;
+  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(5 - full - half);
 }
 
 function setStatus(msg, isError = false) {
