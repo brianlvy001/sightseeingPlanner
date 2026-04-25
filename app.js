@@ -54,12 +54,14 @@ const TYPE_LABELS = {
   korean_restaurant:     'Top Korean Restaurants',
 };
 
-let leafletMap  = null;
-let lastCenter  = null;
-let lastPlaces  = [];
-let lastSource  = null;
-let markers     = [];
-let carouselIdx = 0;
+let leafletMap   = null;
+let lastCenter   = null;
+let lastPlaces   = [];
+let lastSource   = null;
+let markers      = [];
+let carouselIdx  = 0;
+let mapPanTimer  = null;
+let gMapUpdTimer = null;
 
 // ── Cover Flow carousel ───────────────────────────────────────────────────────
 
@@ -132,6 +134,7 @@ function updateCarousel(instant = false) {
   carouselCount.textContent = `${carouselIdx + 1} of ${total}`;
   updateActiveInfo(carouselIdx);
   updateScrubber();
+  highlightMapMarker(carouselIdx);
 }
 
 function updateScrubber() {
@@ -290,6 +293,7 @@ window.addEventListener('mouseup', () => {
   placesList.classList.remove('is-scrubbing');
   scrubberThumb.classList.remove('dragging');
   updateScrubber();
+  highlightMapMarker(carouselIdx);
 });
 
 // ── Scrubber track click (jump to position) ───────────────────────────────────
@@ -341,6 +345,7 @@ scrubberThumb.addEventListener('touchend', () => {
   placesList.classList.remove('is-scrubbing');
   scrubberThumb.classList.remove('dragging');
   updateScrubber();
+  highlightMapMarker(carouselIdx);
 });
 
 // ── Fullscreen toggle ─────────────────────────────────────────────────────────
@@ -588,9 +593,52 @@ function attachCardClicks() {
       updateCarousel();
       placesList.querySelectorAll('.place-card').forEach(c => c.classList.remove('map-selected'));
       card.classList.add('map-selected');
-      if (leafletMap && markers[i]) { markers[i].openPopup(); leafletMap.panTo(markers[i].getLatLng()); }
+      highlightMapMarker(i);
     });
   });
+}
+
+// ── Map marker helpers ────────────────────────────────────────────────────────
+function makeMarkerIcon(rank, isActive) {
+  const bg   = isActive ? '#e94560' : '#1a1a2e';
+  const size = isActive ? 34 : 26;
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:${size}px;height:${size}px;background:${bg};color:#fff;border-radius:50%;border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;font-size:${isActive ? 12 : 10}px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.45)">${rank}</div>`,
+    iconSize:    [size, size],
+    iconAnchor:  [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2 + 4)],
+  });
+}
+
+function highlightMapMarker(idx) {
+  if (leafletMap && markers.length) {
+    markers.forEach((m, i) => m.setIcon(makeMarkerIcon(i + 1, i === idx)));
+    clearTimeout(mapPanTimer);
+    mapPanTimer = setTimeout(() => {
+      const active = markers[idx];
+      if (active) {
+        leafletMap.panTo(active.getLatLng(), { animate: true, duration: 0.4 });
+        active.openPopup();
+      }
+    }, 150);
+    return;
+  }
+  if (lastSource === 'google' && lastPlaces.length) {
+    clearTimeout(gMapUpdTimer);
+    const isScrubbing = placesList.classList.contains('is-scrubbing');
+    const delay = isScrubbing ? 400 : 0;
+    gMapUpdTimer = setTimeout(() => {
+      const p   = lastPlaces[idx];
+      if (!p) return;
+      const lat  = p.location?.latitude  ?? p.lat ?? p.center?.lat;
+      const lng  = p.location?.longitude ?? p.lon ?? p.center?.lon;
+      const name = p.displayName?.text || p.tags?.name || '';
+      if (lat && lng) {
+        gmapFrame.src = `https://www.google.com/maps?q=${encodeURIComponent(name)}&ll=${lat},${lng}&z=16&output=embed`;
+      }
+    }, delay);
+  }
 }
 
 // ── Map renderers ─────────────────────────────────────────────────────────────
@@ -613,7 +661,7 @@ function renderLeaflet(center, places) {
     const lng  = p.location ? p.location.longitude : (p.lon ?? p.center?.lon);
     const name = p.displayName?.text || p.tags?.name || '';
     const extra = p.rating ? `<br>⭐ ${p.rating}` : '';
-    const marker = L.marker([lat, lng]).addTo(leafletMap)
+    const marker = L.marker([lat, lng], { icon: makeMarkerIcon(i + 1, false) }).addTo(leafletMap)
       .bindPopup(`<strong>${escHtml(name)}</strong>${extra}`);
     marker.on('click', () => {
       carouselIdx = i;
