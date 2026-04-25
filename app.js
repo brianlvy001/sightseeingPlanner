@@ -42,6 +42,7 @@ const OVERPASS_QUERIES = {
   thai_restaurant:       CQ('thai'),
   japanese_restaurant:   CQ('japanese'),
   vietnamese_restaurant: CQ('vietnamese'),
+  korean_restaurant:     CQ('korean'),
 };
 
 const TYPE_LABELS = {
@@ -50,6 +51,7 @@ const TYPE_LABELS = {
   thai_restaurant:       'Top Thai Restaurants',
   japanese_restaurant:   'Top Japanese Restaurants',
   vietnamese_restaurant: 'Top Vietnamese Restaurants',
+  korean_restaurant:     'Top Korean Restaurants',
 };
 
 let leafletMap  = null;
@@ -473,7 +475,7 @@ function placeScore(p) {
 const GAPI_KEY = 'AIzaSyBvQza0NnKLqOXtNvYOs1-lcPXT6ghWCXM';
 const FOOD_TYPES = new Set([
   'asian_restaurant', 'chinese_restaurant', 'thai_restaurant',
-  'japanese_restaurant', 'vietnamese_restaurant',
+  'japanese_restaurant', 'vietnamese_restaurant', 'korean_restaurant',
 ]);
 
 async function fetchGooglePlaces(center, type) {
