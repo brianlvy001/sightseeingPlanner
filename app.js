@@ -136,7 +136,7 @@ async function geocodeNominatim(address) {
 }
 
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────
-const GAPI_KEY = 'AIzaSyChU0yVTw0JTAaie6zLQoN7nyGinWQ5wqo';
+const GAPI_KEY = 'AIzaSyBvQza0NnKLqOXtNvYOs1-lcPXT6ghWCXM';
 
 async function fetchGooglePlaces(center, type) {
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
