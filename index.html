@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=25" />
+  <link rel="stylesheet" href="style.css?v=29" />
 </head>
 <body>
   <header>
@@ -85,11 +85,23 @@
         <div class="carousel-header">
           <h2 id="panel-title">Top Places</h2>
           <span id="carousel-counter"></span>
+          <button id="fullscreen-btn" class="fullscreen-btn" title="Full screen">&#x2922;</button>
         </div>
         <div id="carousel-track">
-          <div id="places-list"></div>
+          <div id="carousel-clip">
+            <div id="places-list"></div>
+          </div>
           <button id="carousel-prev" class="carousel-btn" aria-label="Previous">&#10094;</button>
           <button id="carousel-next" class="carousel-btn" aria-label="Next">&#10095;</button>
+        </div>
+        <div id="active-info">
+          <div id="active-name"></div>
+          <div id="active-meta">
+            <div class="rating-track"><div class="rating-fill" id="active-fill"></div></div>
+            <span class="rating-num" id="active-num"></span>
+            <span class="rating-count" id="active-count"></span>
+          </div>
+          <div id="active-links"></div>
         </div>
       </div>
 
@@ -122,6 +134,6 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=29"></script>
 </body>
 </html>

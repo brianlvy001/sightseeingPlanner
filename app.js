@@ -18,6 +18,13 @@ const carouselNext  = document.getElementById('carousel-next');
 const carouselCount = document.getElementById('carousel-counter');
 const placesList    = document.getElementById('places-list');
 const panelTitle    = document.getElementById('panel-title');
+const activeInfo    = document.getElementById('active-info');
+const activeName    = document.getElementById('active-name');
+const activeFill    = document.getElementById('active-fill');
+const activeNum     = document.getElementById('active-num');
+const activeCount   = document.getElementById('active-count');
+const activeLinks   = document.getElementById('active-links');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
 
 const Q = (tag, val) =>
   `(node["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG); way["${tag}"="${val}"]["name"](around:${RADIUS_M},LAT,LNG););`;
@@ -65,94 +72,155 @@ const TYPE_LABELS = {
   bank: 'Nearby Banks', atm: 'Nearby ATMs',
 };
 
-let leafletMap = null;
-let lastCenter = null;
-let lastPlaces = [];
-let lastSource = null;
-let markers    = [];
+let leafletMap  = null;
+let lastCenter  = null;
+let lastPlaces  = [];
+let lastSource  = null;
+let markers     = [];
 let carouselIdx = 0;
 
-// ── Carousel navigation (coverflow) ──────────────────────────────────────────
-const CARD_W = 200;
-const CARD_GAP = 16;
+// ── Cover Flow carousel ───────────────────────────────────────────────────────
 
-function updateCarousel() {
+function cardW() {
+  const c = placesList.querySelector('.place-card');
+  return c ? c.offsetWidth : 200;
+}
+
+function updateCarousel(instant = false) {
   const cards = Array.from(placesList.querySelectorAll('.place-card'));
   if (!cards.length) return;
+
   const total  = cards.length;
   const trackW = carouselTrack.offsetWidth;
-
-  // Center active card in track
-  const centerOffset = (trackW - CARD_W) / 2;
-  const scrollOffset = carouselIdx * (CARD_W + CARD_GAP);
-  placesList.style.transform = `translateX(${centerOffset - scrollOffset}px)`;
+  const cw     = cardW();
+  const centerX = (trackW - cw) / 2;
 
   cards.forEach((card, i) => {
-    const dist = Math.abs(i - carouselIdx);
+    const dist   = i - carouselIdx;
+    const absDist = Math.abs(dist);
+    const sign   = dist > 0 ? 1 : dist < 0 ? -1 : 0;
+
+    let left, rotY, tz, opacity, zIndex;
+
+    if (dist === 0) {
+      left    = centerX;
+      rotY    = 0;
+      tz      = 0;
+      opacity = 1;
+      zIndex  = 20;
+    } else {
+      // Tight Cover-Flow packing: first neighbour ~62% of card width from center,
+      // each additional neighbour adds ~16% (they stack behind each other)
+      const offset = cw * 0.62 + (absDist - 1) * cw * 0.16;
+      left    = centerX + sign * offset;
+      rotY    = sign * -55;
+      if (absDist >= 2) rotY = sign * -70;
+      tz      = absDist === 1 ? -90 : -180;
+      opacity = absDist === 1 ? 0.88 : absDist === 2 ? 0.55 : 0.22;
+      zIndex  = Math.max(0, 20 - absDist * 4);
+    }
+
+    if (instant) card.style.transition = 'none';
+    card.style.left      = left + 'px';
+    card.style.transform = `rotateY(${rotY}deg) translateZ(${tz}px)`;
+    card.style.opacity   = opacity;
+    card.style.zIndex    = zIndex;
+    if (instant) {
+      card.offsetHeight; // force reflow
+      card.style.transition = '';
+    }
+
     card.classList.toggle('is-active',   dist === 0);
-    card.classList.toggle('is-adjacent', dist === 1);
-    card.classList.toggle('is-far',      dist >= 2);
+    card.classList.toggle('is-adjacent', absDist === 1);
+    card.classList.toggle('is-far',      absDist >= 2);
   });
 
   carouselPrev.disabled = carouselIdx === 0;
   carouselNext.disabled = carouselIdx >= total - 1;
   carouselCount.textContent = `${carouselIdx + 1} of ${total}`;
+  updateActiveInfo(carouselIdx);
+}
+
+function updateActiveInfo(idx) {
+  if (!lastPlaces.length || idx >= lastPlaces.length) return;
+  const p = lastPlaces[idx];
+
+  if (lastSource === 'google') {
+    const name   = p.displayName?.text || '';
+    const rating = p.rating || 0;
+    const count  = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
+    const url    = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
+    activeName.textContent      = name;
+    activeFill.style.width      = (rating / 5 * 100).toFixed(0) + '%';
+    activeNum.textContent       = rating.toFixed(1);
+    activeCount.textContent     = count;
+    activeLinks.innerHTML       = `<a class="place-link" href="${url}" target="_blank" rel="noopener">Google Maps &rarr;</a>`;
+  } else {
+    const name     = p.tags?.name || '';
+    const maxScore = lastPlaces[0]._score || 1;
+    const score    = (p._score / maxScore) * 5;
+    const lat      = p.lat ?? p.center?.lat;
+    const lng      = p.lon ?? p.center?.lon;
+    const mapsUrl  = `https://www.google.com/maps?q=${lat},${lng}`;
+    const wikiUrl  = p.tags?.wikipedia
+      ? `https://en.wikipedia.org/wiki/${encodeURIComponent(p.tags.wikipedia.replace(/^en:/, ''))}`
+      : null;
+    activeName.textContent  = name;
+    activeFill.style.width  = (score / 5 * 100).toFixed(0) + '%';
+    activeNum.textContent   = score.toFixed(1);
+    activeCount.textContent = '';
+    activeLinks.innerHTML   = `<a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener">Google Maps</a>`
+      + (wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener">Wikipedia</a>` : '');
+  }
 }
 
 carouselPrev.addEventListener('click', () => { carouselIdx = Math.max(0, carouselIdx - 1); updateCarousel(); });
-carouselNext.addEventListener('click', () => { const cards = placesList.querySelectorAll('.place-card'); carouselIdx = Math.min(cards.length - 1, carouselIdx + 1); updateCarousel(); });
-window.addEventListener('resize', updateCarousel);
+carouselNext.addEventListener('click', () => {
+  const cards = placesList.querySelectorAll('.place-card');
+  carouselIdx = Math.min(cards.length - 1, carouselIdx + 1);
+  updateCarousel();
+});
+window.addEventListener('resize', () => updateCarousel());
 
-// Mouse drag
-let isDragging   = false;
-let dragStartX   = 0;
-let dragBase     = 0;
-let dragMoved    = false;
-
-function getCurrentOffset() {
-  const m = (placesList.style.transform || '').match(/translateX\((-?[\d.]+)px\)/);
-  return m ? parseFloat(m[1]) : 0;
-}
+// ── Mouse drag (snap-on-release) ──────────────────────────────────────────────
+let isDragging = false;
+let dragStartX = 0;
+let dragMoved  = false;
 
 carouselTrack.addEventListener('mousedown', e => {
   if (e.button !== 0) return;
-  isDragging  = true;
-  dragMoved   = false;
-  dragStartX  = e.clientX;
-  dragBase    = getCurrentOffset();
-  placesList.style.transition = 'none';
-  carouselTrack.style.cursor  = 'grabbing';
+  isDragging = true;
+  dragMoved  = false;
+  dragStartX = e.clientX;
+  carouselTrack.style.cursor = 'grabbing';
   e.preventDefault();
 });
 
 window.addEventListener('mousemove', e => {
   if (!isDragging) return;
-  const dx = e.clientX - dragStartX;
-  if (Math.abs(dx) > 4) dragMoved = true;
-  placesList.style.transform = `translateX(${dragBase + dx}px)`;
+  if (Math.abs(e.clientX - dragStartX) > 6) dragMoved = true;
 });
 
 window.addEventListener('mouseup', e => {
   if (!isDragging) return;
   isDragging = false;
   carouselTrack.style.cursor = 'grab';
-  placesList.style.transition = '';
   if (dragMoved) {
     const dx    = e.clientX - dragStartX;
-    const step  = CARD_W + CARD_GAP;
+    const cw    = cardW();
+    const skip  = Math.max(1, Math.round(Math.abs(dx) / (cw * 0.5)));
     const cards = placesList.querySelectorAll('.place-card');
-    const skip  = Math.max(1, Math.round(Math.abs(dx) / step));
     if (dx < 0) carouselIdx = Math.min(cards.length - 1, carouselIdx + skip);
     else        carouselIdx = Math.max(0, carouselIdx - skip);
+    updateCarousel();
   }
-  updateCarousel();
 });
 
-// Touch swipe
+// ── Touch swipe ───────────────────────────────────────────────────────────────
 let touchStartX = 0;
 carouselTrack.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
 carouselTrack.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dx    = e.changedTouches[0].clientX - touchStartX;
   const cards = placesList.querySelectorAll('.place-card');
   if (Math.abs(dx) > 40) {
     if (dx < 0 && carouselIdx < cards.length - 1) carouselIdx++;
@@ -160,6 +228,15 @@ carouselTrack.addEventListener('touchend', e => {
     updateCarousel();
   }
 }, { passive: true });
+
+// ── Fullscreen toggle ─────────────────────────────────────────────────────────
+fullscreenBtn.addEventListener('click', () => {
+  const isFs = carouselWrap.classList.toggle('is-fullscreen');
+  fullscreenBtn.innerHTML   = isFs ? '&#x2715;' : '&#x2922;';
+  fullscreenBtn.title       = isFs ? 'Exit full screen' : 'Full screen';
+  document.body.style.overflow = isFs ? 'hidden' : '';
+  setTimeout(() => updateCarousel(), 60);
+});
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
@@ -198,7 +275,8 @@ form.addEventListener('submit', async (e) => {
 
     carouselIdx = 0;
     carouselWrap.classList.remove('hidden');
-    setTimeout(updateCarousel, 50);
+    // Position instantly on first load, then re-enable transitions
+    setTimeout(() => updateCarousel(true), 30);
 
     source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
   } catch (err) {
@@ -294,34 +372,17 @@ function renderGoogleCards(places, type) {
   placesList.innerHTML = places.map((p, i) => {
     const badge      = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
     const name       = p.displayName?.text || '';
-    const stars      = renderStars(p.rating);
-    const count      = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
-    const mapsUrl    = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
     const photoIndex = FOOD_TYPES.has(type) ? 1 : 0;
     const photoRef   = (p.photos?.[photoIndex] ?? p.photos?.[0])?.name;
-    const photoUrl   = photoRef ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}` : '';
+    const photoUrl   = photoRef
+      ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}`
+      : '';
     return `<div class="place-card" data-index="${i}">
-      ${photoUrl
-        ? `<div class="card-photo-wrap">
-             <img class="card-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.parentElement.remove()">
-             <div class="rank-badge ${badge} badge-over">${i + 1}</div>
-           </div>
-           <div class="card-body">
-             <div class="place-name">${escHtml(name)}</div>`
-        : `<div class="card-top">
-             <div class="rank-badge ${badge}">${i + 1}</div>
-             <div class="place-name">${escHtml(name)}</div>
-           </div>
-           <div class="card-body">`}
-        <div class="place-rating">
-          <span class="stars">${stars}</span>
-          <span class="rating-num">${p.rating.toFixed(1)}</span>
-          <span class="rating-count">${count}</span>
-        </div>
-        ${p.formattedAddress ? `<div class="place-address">${escHtml(p.formattedAddress)}</div>` : ''}
-        <div class="place-links">
-          <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps &rarr;</a>
-        </div>
+      <div class="card-cover-wrap">
+        ${photoUrl
+          ? `<img class="card-cover" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.style.display='none'">`
+          : `<div class="card-cover-placeholder"><span class="card-place-icon">📍</span></div>`}
+        <div class="rank-badge ${badge} badge-over">${i + 1}</div>
       </div>
     </div>`;
   }).join('');
@@ -329,33 +390,16 @@ function renderGoogleCards(places, type) {
 }
 
 function renderOsmCards(places) {
-  const maxScore = places[0]._score || 1;
   placesList.innerHTML = places.map((p, i) => {
-    const badge   = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-    const score   = (p._score / maxScore) * 5;
-    const stars   = renderStars(score);
-    const lat     = p.lat ?? p.center.lat;
-    const lng     = p.lon ?? p.center.lon;
-    const type    = (p.tags.tourism || p.tags.historic || p.tags.leisure || '').replace(/_/g, ' ');
-    const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-    const wikiUrl = p.tags.wikipedia
-      ? `https://en.wikipedia.org/wiki/${encodeURIComponent(p.tags.wikipedia.replace(/^en:/, ''))}`
-      : null;
+    const badge = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const type  = (p.tags.tourism || p.tags.historic || p.tags.leisure || '').replace(/_/g, ' ');
     return `<div class="place-card" data-index="${i}">
-      <div class="card-top">
-        <div class="rank-badge ${badge}">${i + 1}</div>
-        <div class="place-name">${escHtml(p.tags.name)}</div>
-      </div>
-      <div class="card-body">
-        ${type ? `<div class="place-type">${escHtml(type)}</div>` : ''}
-        <div class="place-rating">
-          <span class="stars">${stars}</span>
-          <span class="rating-num">${score.toFixed(1)}</span>
+      <div class="card-cover-wrap">
+        <div class="card-cover-placeholder">
+          ${type ? `<div class="card-place-type">${escHtml(type)}</div>` : ''}
+          <span class="card-place-icon">📍</span>
         </div>
-        <div class="place-links">
-          <a class="place-link" href="${mapsUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Google Maps</a>
-          ${wikiUrl ? `<a class="place-link" href="${wikiUrl}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Wikipedia</a>` : ''}
-        </div>
+        <div class="rank-badge ${badge} badge-over">${i + 1}</div>
       </div>
     </div>`;
   }).join('');
@@ -444,13 +488,6 @@ function hidePlaceholders() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function renderStars(rating) {
-  const v    = Math.min(5, Math.max(0, rating));
-  const full = Math.floor(v);
-  const half = (v - full) >= 0.5 ? 1 : 0;
-  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(5 - full - half);
-}
-
 function setStatus(msg, isError = false) {
   statusEl.textContent = msg;
   statusEl.className   = isError ? 'error' : '';

@@ -103,10 +103,10 @@ main {
 
 /* ── Carousel wrapper ────────────────────────────────── */
 #carousel-wrap {
-  background: #fff;
+  background: linear-gradient(180deg, #1c1c1e 0%, #0d0d0d 100%);
   border-radius: 14px;
   box-shadow: 0 4px 18px rgba(0,0,0,0.08);
-  padding: 1rem 0 1.4rem;
+  padding: 1rem 0 0;
   overflow: hidden;
 }
 #carousel-wrap.hidden { display: none; }
@@ -123,134 +123,141 @@ main {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #1a1a2e;
+  color: rgba(255,255,255,0.9);
 }
 
-#carousel-counter { font-size: 0.72rem; color: #aaa; font-weight: 600; }
+#carousel-counter { font-size: 0.72rem; color: rgba(255,255,255,0.35); font-weight: 600; }
 
-/* ── Coverflow track ─────────────────────────────────── */
-#carousel-track {
-  position: relative;
-  height: 290px;
-  overflow: hidden;
-  cursor: grab;
-}
-
-#places-list {
+/* ── Full-screen button ──────────────────────────────── */
+.fullscreen-btn {
+  width: 1.9rem;
+  height: 1.9rem;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.65);
+  font-size: 1rem;
+  cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.fullscreen-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+/* ── 3-D Cover-Flow track ────────────────────────────── */
+#carousel-track {
+  position: relative;
+  height: 260px;
+  overflow: visible;
+  cursor: grab;
+  perspective: 900px;
+  perspective-origin: 50% 48%;
+}
+#carousel-track:active { cursor: grabbing; }
+
+/* Clips side bleed-over but allows reflection to show below */
+#carousel-clip {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 0 -120px 0);
+}
+
+/* Container for absolutely-positioned cards */
+#places-list {
+  position: relative;
   height: 100%;
-  gap: 16px;
-  will-change: transform;
-  transition: transform 0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   user-select: none;
   -webkit-user-select: none;
 }
 
-/* Floating nav buttons */
+/* ── Floating nav buttons ────────────────────────────── */
 .carousel-btn {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 20;
+  z-index: 30;
   width: 2.2rem;
   height: 2.2rem;
   border-radius: 50%;
   border: none;
-  background: rgba(255,255,255,0.92);
-  color: #1a1a2e;
+  background: rgba(255,255,255,0.14);
+  color: #fff;
   font-size: 0.95rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 14px rgba(0,0,0,0.18);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: opacity 0.2s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.2s, transform 0.15s, background 0.15s;
 }
 #carousel-prev { left: 0.7rem; }
 #carousel-next { right: 0.7rem; }
-.carousel-btn:hover  { transform: translateY(-50%) scale(1.1); box-shadow: 0 4px 20px rgba(0,0,0,0.22); }
+.carousel-btn:hover  { transform: translateY(-50%) scale(1.1); background: rgba(255,255,255,0.22); }
 .carousel-btn:active { transform: translateY(-50%) scale(0.93); }
-.carousel-btn:disabled { opacity: 0.2; cursor: default; }
+.carousel-btn:disabled { opacity: 0.15; cursor: default; }
 
-/* ── Place card (coverflow) ──────────────────────────── */
+/* ── Cover-Flow place card (album-cover style) ───────── */
 .place-card {
-  flex-shrink: 0;
+  position: absolute;
+  top: 20px;
   width: 200px;
-  height: 262px;
-  border-radius: 16px;
+  height: 200px;
+  border-radius: 8px;
   border: 2px solid transparent;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-  cursor: pointer;
   overflow: hidden;
-  background: #fff;
-  transition: transform 0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              opacity 0.44s ease,
-              box-shadow 0.44s ease,
-              border-color 0.2s;
+  cursor: pointer;
+  background: #222;
+  transition: left   0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity  0.44s ease;
   transform-origin: center center;
-  transform: scale(0.8);
-  opacity: 0.45;
 }
 
+/* Active: flat-facing, full reflection */
 .place-card.is-active {
-  transform: scale(1);
-  opacity: 1;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.22);
-  z-index: 10;
+  -webkit-box-reflect: below 3px
+    linear-gradient(rgba(0,0,0,0.6) 0%, transparent 62%);
 }
 .place-card.is-active.map-selected { border-color: #e94560; }
 
-.place-card.is-adjacent {
-  transform: scale(0.84);
-  opacity: 0.65;
-  z-index: 5;
-}
-
-.place-card.is-far {
-  transform: scale(0.72);
-  opacity: 0.25;
-  z-index: 1;
-}
-
-.card-photo-wrap {
+/* ── Card face: photo fills the square ──────────────── */
+.card-cover-wrap {
   position: relative;
   width: 100%;
-  height: 152px;
-  overflow: hidden;
+  height: 100%;
 }
 
-.card-photo {
+.card-cover {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 0.4s ease;
-}
-.place-card.is-active .card-photo { transform: scale(1.03); }
-.place-card.is-active:hover .card-photo { transform: scale(1.07); }
-
-.badge-over {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 1.55rem;
-  height: 1.55rem;
-  font-size: 0.72rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  pointer-events: none;
 }
 
-.card-body { padding: 0.55rem 0.8rem 0.6rem; }
-
-.card-top {
+.card-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.65rem 0.8rem 0.3rem;
+  justify-content: center;
+  gap: 6px;
+}
+.card-place-icon { font-size: 2.8rem; }
+.card-place-type {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.5);
+  text-transform: capitalize;
+  text-align: center;
+  padding: 0 8px;
 }
 
+/* ── Rank badge ──────────────────────────────────────── */
 .rank-badge {
   flex-shrink: 0;
   width: 1.4rem;
@@ -268,31 +275,76 @@ main {
 .rank-badge.silver { background: #9e9e9e; }
 .rank-badge.bronze { background: #a1673a; }
 
-.place-name {
-  font-size: 0.88rem;
+.badge-over {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 1.55rem;
+  height: 1.55rem;
+  font-size: 0.72rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+
+/* ── Active-card info bar (iTunes metadata strip) ────── */
+#active-info {
+  padding: 0.9rem 1.5rem 1.1rem;
+  text-align: center;
+  min-height: 80px;
+}
+
+#active-name {
+  font-size: 1rem;
   font-weight: 700;
-  line-height: 1.3;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 0.45rem;
 }
 
-.place-rating {
+#active-meta {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  margin-top: 0.15rem;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 0.4rem;
 }
-.stars       { color: #f5a623; font-size: 0.78rem; letter-spacing: 1px; }
-.rating-num  { font-size: 0.8rem; font-weight: 700; color: #333; }
-.rating-count { font-size: 0.72rem; color: #aaa; }
 
-.place-type    { font-size: 0.72rem; color: #888; margin-top: 0.1rem; text-transform: capitalize; }
-.place-address { font-size: 0.72rem; color: #999; margin-top: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rating-track {
+  flex: 1;
+  max-width: 120px;
+  height: 3px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.rating-fill  { height: 100%; background: #f5c518; border-radius: 2px; }
+.rating-num   { font-size: 0.82rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.rating-count { font-size: 0.7rem; color: rgba(255,255,255,0.45); flex-shrink: 0; }
 
-.place-links { display: flex; gap: 0.5rem; margin-top: 0.3rem; }
-.place-link  { font-size: 0.72rem; color: #e94560; text-decoration: none; font-weight: 600; }
-.place-link:hover { text-decoration: underline; }
+#active-links { display: flex; justify-content: center; gap: 1rem; }
+.place-link  { font-size: 0.78rem; color: rgba(255,255,255,0.6); text-decoration: none; font-weight: 600; transition: color 0.15s; }
+.place-link:hover { color: #fff; }
+
+/* ── Full-screen mode ────────────────────────────────── */
+#carousel-wrap.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  border-radius: 0;
+  overflow-y: auto;
+  padding-top: 1rem;
+}
+#carousel-wrap.is-fullscreen #carousel-track {
+  height: 52vh;
+  perspective: 1200px;
+}
+#carousel-wrap.is-fullscreen .place-card {
+  width: 300px;
+  height: 300px;
+}
+#carousel-wrap.is-fullscreen #active-name { font-size: 1.3rem; }
+#carousel-wrap.is-fullscreen .rating-track { max-width: 180px; }
 
 /* ── Map container ───────────────────────────────────── */
 #map-container {
@@ -436,6 +488,7 @@ main {
 @media (max-width: 640px) {
   .filter-group.wide { min-width: 100%; }
   #map-container, #map, #gmap { height: 360px; }
-  .place-card { width: 155px; }
-  .card-photo-wrap { height: 100px; }
+  .place-card { width: 140px; height: 140px; top: 14px; }
+  #carousel-track { height: 190px; }
+  #active-name { font-size: 0.9rem; }
 }
