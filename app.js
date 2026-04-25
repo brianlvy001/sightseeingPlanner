@@ -138,15 +138,21 @@ async function geocodeNominatim(address) {
 // ── Google Places ─────────────────────────────────────────────────────────────
 function fetchGooglePlaces(center, type) {
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Google Places timed out. Check that Places API is enabled and billing is active.')), 10000);
     const service = new google.maps.places.PlacesService(document.getElementById('attr'));
     service.nearbySearch({ location: center, radius: RADIUS_M, type }, (places, status) => {
+      clearTimeout(timer);
       const S = google.maps.places.PlacesServiceStatus;
-      if (status === S.REQUEST_DENIED) {
-        reject(new Error('Google Places requires billing — enable it at console.cloud.google.com/billing, or switch to OpenStreetMap.'));
-      } else if (status === S.OK) {
+      if (status === S.OK) {
         resolve(places.filter(p => p.rating != null).sort((a, b) => b.rating - a.rating).slice(0, 10));
-      } else {
+      } else if (status === S.ZERO_RESULTS) {
         resolve([]);
+      } else if (status === S.REQUEST_DENIED) {
+        reject(new Error('Google Places API denied — enable billing at console.cloud.google.com/billing.'));
+      } else if (status === S.OVER_QUERY_LIMIT) {
+        reject(new Error('Google Places query limit reached. Try again in a moment.'));
+      } else {
+        reject(new Error(`Google Places error: ${status}`));
       }
     });
   });
