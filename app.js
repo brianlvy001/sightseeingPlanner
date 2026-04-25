@@ -287,6 +287,15 @@ async function geocodeNominatim(address) {
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
+// ── Ranking ───────────────────────────────────────────────────────────────────
+// Composite score: rewards high rating AND high review count.
+// A 5.0 with 3 reviews scores lower than a 4.5 with 500 reviews.
+// log(reviewCount + 1) grows quickly at first then levels off, so
+// going from 0→100 reviews matters a lot; 1000→2000 matters less.
+function placeScore(p) {
+  return p.rating * Math.log(p.userRatingCount + 1);
+}
+
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────
 const GAPI_KEY = 'AIzaSyBvQza0NnKLqOXtNvYOs1-lcPXT6ghWCXM';
 const FOOD_TYPES = new Set([
@@ -317,7 +326,10 @@ async function fetchGooglePlaces(center, type) {
     throw new Error(`Google Places error (${res.status}): ${msg}`);
   }
   const data = await res.json();
-  return (data.places || []).filter(p => p.rating != null).sort((a, b) => b.rating - a.rating).slice(0, 10);
+  return (data.places || [])
+    .filter(p => p.rating != null && p.userRatingCount != null)
+    .sort((a, b) => placeScore(b) - placeScore(a))
+    .slice(0, 10);
 }
 
 // ── OSM / Overpass ────────────────────────────────────────────────────────────
