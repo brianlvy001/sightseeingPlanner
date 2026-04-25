@@ -67,7 +67,9 @@ const TYPE_LABELS = {
   korean_restaurant:     'Top Korean Restaurants',
 };
 
-let currentView  = 'map-route';
+let currentView       = 'map-route';
+let lastFoodiePlaces  = [];
+let activeFoodieTab   = 'popular';
 let leafletMap   = null;
 let lastCenter   = null;
 let lastPlaces   = [];
@@ -596,98 +598,130 @@ viewTabs.forEach(tab => {
   });
 });
 
-// ── Foodie renderer ───────────────────────────────────────────────────────────
-function starsHtml(rating) {
-  const full = Math.floor(rating);
-  const half = rating - full >= 0.3 && rating - full < 0.8;
-  const empty = 5 - full - (half ? 1 : 0);
-  return '<span class="foodie-stars">'
-    + '★'.repeat(full).split('').map(() => '<span class="foodie-star filled">★</span>').join('')
-    + (half ? '<span class="foodie-star half">★</span>' : '')
-    + '☆'.repeat(empty).split('').map(() => '<span class="foodie-star">☆</span>').join('')
-    + '</span>';
+// ── Foodie / RedNote renderer ─────────────────────────────────────────────────
+
+function buildFoodiePosts(places, tab) {
+  const posts = [];
+  places.forEach(place => {
+    const reviews = place.reviews || [];
+    const photos  = place.photos  || [];
+    reviews.forEach((review, ri) => {
+      if (!review.text?.text) return;
+      const photoRef = (photos[ri % Math.max(photos.length, 1)])?.name;
+      const photoUrl = photoRef
+        ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}`
+        : '';
+      posts.push({ place, review, photoUrl, ts: new Date(review.publishTime || 0).getTime() });
+    });
+  });
+
+  if (tab === 'latest') {
+    posts.sort((a, b) => b.ts - a.ts);
+  } else {
+    posts.sort((a, b) => (b.review.rating || 0) - (a.review.rating || 0) || b.ts - a.ts);
+  }
+  return posts.slice(0, 10);
+}
+
+function rnStars(rating) {
+  return '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating));
 }
 
 function renderFoodieCards(places, type, source) {
+  lastFoodiePlaces = places;
   foodieTitle.textContent = TYPE_LABELS[type] || 'Top Places';
-  foodieCount.textContent = `${places.length} place${places.length !== 1 ? 's' : ''}`;
 
-  foodieList.innerHTML = places.map((p, i) => {
-    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
-
-    if (source === 'google') {
-      const name      = p.displayName?.text || '';
-      const rating    = p.rating ?? 0;
-      const count     = p.userRatingCount ?? 0;
-      const address   = p.formattedAddress || '';
-      const gmapsUrl  = p.googleMapsUri || '';
-      const photoIndex = FOOD_TYPES.has(type) ? 1 : 0;
-      const photoRef  = (p.photos?.[photoIndex] ?? p.photos?.[0])?.name;
-      const photoUrl  = photoRef
-        ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=260&key=${GAPI_KEY}`
-        : '';
-      const destLat = p.location.latitude;
-      const destLng = p.location.longitude;
-
-      return `<div class="foodie-card">
-        <div class="foodie-photo-wrap">
-          ${photoUrl
-            ? `<img class="foodie-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\"foodie-photo-placeholder\\">🍽️</div>'">`
-            : '<div class="foodie-photo-placeholder">🍽️</div>'}
-          <div class="foodie-rank ${rankClass}">${i + 1}</div>
-        </div>
-        <div class="foodie-body">
-          <div class="foodie-name">${escHtml(name)}</div>
-          <div class="foodie-rating-row">
-            ${starsHtml(rating)}
-            <span class="foodie-rating-num">${rating.toFixed(1)}</span>
-            <span class="foodie-rating-count">(${count.toLocaleString()})</span>
-          </div>
-          ${address ? `<div class="foodie-address">📍 ${escHtml(address)}</div>` : ''}
-          <div class="foodie-actions">
-            ${gmapsUrl ? `<a class="foodie-link" href="${gmapsUrl}" target="_blank" rel="noopener">View on Maps ↗</a>` : ''}
-            ${lastCenter ? `<button class="foodie-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
-          </div>
-        </div>
-      </div>`;
-    } else {
+  if (source !== 'google') {
+    // OSM has no reviews — show a simple notice + place list
+    foodieCount.textContent = `${places.length} place${places.length !== 1 ? 's' : ''}`;
+    foodieList.innerHTML = places.map((p, i) => {
       const t       = p.tags;
       const name    = t.name || '';
-      const address = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ');
-      const website = t.website || t['contact:website'] || '';
-      const cuisine = (t.cuisine || '').replace(/;/g, ', ').replace(/_/g, ' ');
-      const hours   = t.opening_hours || '';
+      const cuisine = (t.cuisine || '').replace(/;/g, ' · ').replace(/_/g, ' ');
       const destLat = p.lat ?? p.center?.lat;
       const destLng = p.lon ?? p.center?.lon;
-
-      return `<div class="foodie-card">
-        <div class="foodie-photo-wrap">
-          <div class="foodie-photo-placeholder">🍜</div>
-          <div class="foodie-rank ${rankClass}">${i + 1}</div>
+      return `<div class="rn-card rn-osm">
+        <div class="rn-osm-rank">${i + 1}</div>
+        <div class="rn-osm-body">
+          <div class="rn-osm-name">${escHtml(name)}</div>
+          ${cuisine ? `<div class="rn-osm-cuisine">${escHtml(cuisine)}</div>` : ''}
         </div>
-        <div class="foodie-body">
-          <div class="foodie-name">${escHtml(name)}</div>
-          ${cuisine ? `<div class="foodie-tags"><span class="foodie-tag">${escHtml(cuisine)}</span></div>` : ''}
-          ${address ? `<div class="foodie-address">📍 ${escHtml(address)}</div>` : ''}
-          ${hours ? `<div class="foodie-address">🕐 ${escHtml(hours)}</div>` : ''}
-          <div class="foodie-actions">
-            ${website ? `<a class="foodie-link" href="${escHtml(website)}" target="_blank" rel="noopener">Website ↗</a>` : ''}
-            ${lastCenter ? `<button class="foodie-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
+        ${lastCenter ? `<button class="rn-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️</button>` : ''}
+      </div>`;
+    }).join('');
+  } else {
+    renderFoodieTab(activeFoodieTab);
+    return;
+  }
+
+  wireRouteButtons();
+  foodieWrap.classList.remove('hidden');
+}
+
+function renderFoodieTab(tab) {
+  activeFoodieTab = tab;
+  document.querySelectorAll('.foodie-tab').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+
+  const posts = buildFoodiePosts(lastFoodiePlaces, tab);
+  foodieCount.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
+
+  if (posts.length === 0) {
+    foodieList.innerHTML = '<p class="rn-empty">No reviews with text found. Try a different area.</p>';
+  } else {
+    foodieList.innerHTML = posts.map(({ place, review, photoUrl }) => {
+      const name       = place.displayName?.text || '';
+      const author     = review.authorAttribution?.displayName || 'Anonymous';
+      const avatarUrl  = review.authorAttribution?.photoUri || '';
+      const rating     = review.rating || 0;
+      const timeAgo    = review.relativePublishTimeDescription || '';
+      const text       = review.text?.text || '';
+      const destLat    = place.location.latitude;
+      const destLng    = place.location.longitude;
+
+      return `<div class="rn-card">
+        <div class="rn-photo-wrap">
+          ${photoUrl
+            ? `<img class="rn-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.closest('.rn-photo-wrap').classList.add('rn-no-photo')">`
+            : ''}
+          <div class="rn-photo-gradient"></div>
+          <div class="rn-place-badge">${escHtml(name)}</div>
+          ${lastCenter ? `<button class="rn-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
+        </div>
+        <div class="rn-body">
+          <p class="rn-text">${escHtml(text)}</p>
+          <div class="rn-author-row">
+            ${avatarUrl
+              ? `<img class="rn-avatar" src="${avatarUrl}" alt="${escHtml(author)}" referrerpolicy="no-referrer">`
+              : `<div class="rn-avatar rn-avatar-fallback">${escHtml(author[0] || '?')}</div>`}
+            <span class="rn-author-name">${escHtml(author)}</span>
+            <span class="rn-time">${escHtml(timeAgo)}</span>
+            <span class="rn-rating" title="${rating} stars">${rnStars(rating)}</span>
           </div>
         </div>
       </div>`;
-    }
-  }).join('');
+    }).join('');
+  }
 
-  // Wire up route buttons
-  foodieList.querySelectorAll('.foodie-route-btn').forEach(btn => {
-    btn.addEventListener('click', () =>
-      openRouteModal(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng), btn.dataset.name)
-    );
-  });
-
+  wireRouteButtons();
   foodieWrap.classList.remove('hidden');
 }
+
+function wireRouteButtons() {
+  foodieList.querySelectorAll('.rn-route-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openRouteModal(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng), btn.dataset.name);
+    });
+  });
+}
+
+// Foodie tab clicks
+document.addEventListener('click', e => {
+  const tab = e.target.closest('.foodie-tab');
+  if (tab && lastFoodiePlaces.length) renderFoodieTab(tab.dataset.tab);
+});
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
@@ -708,7 +742,7 @@ form.addEventListener('submit', async (e) => {
     setStatus('Fetching nearby places...');
 
     const places = source === 'google'
-      ? await fetchGooglePlaces(center, type)
+      ? await fetchGooglePlaces(center, type, currentView === 'foodie')
       : await fetchOsmPlaces(center, type);
 
     if (places.length === 0) {
@@ -811,13 +845,14 @@ const FOOD_TYPES = new Set([
   'japanese_restaurant', 'vietnamese_restaurant', 'korean_restaurant',
 ]);
 
-async function fetchGooglePlaces(center, type) {
+async function fetchGooglePlaces(center, type, withReviews = false) {
+  const baseFields = 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos.name';
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': GAPI_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos.name',
+      'X-Goog-FieldMask': withReviews ? baseFields + ',places.reviews' : baseFields,
     },
     body: JSON.stringify({
       includedTypes: [type],

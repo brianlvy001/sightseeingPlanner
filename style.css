@@ -741,191 +741,238 @@ main {
 }
 .view-tab:not(.active):hover { color: #fff; }
 
-/* ── Foodie view ─────────────────────────────────────── */
-#foodie-wrap { display: flex; flex-direction: column; gap: 0.75rem; }
+/* ── Foodie / RedNote view ───────────────────────────── */
+#foodie-wrap { display: flex; flex-direction: column; gap: 0.85rem; }
 #foodie-wrap.hidden { display: none; }
 
 #foodie-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.75rem;
-  padding: 0 0.25rem;
+  flex-wrap: wrap;
 }
 
 #foodie-title {
   font-size: 1rem;
-  font-weight: 700;
-  color: #1a1a2e;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 800;
+  color: #1a1a1a;
+  letter-spacing: -0.01em;
 }
 
 #foodie-count {
-  font-size: 0.78rem;
-  color: #888;
-  font-weight: 600;
+  font-size: 0.75rem;
+  color: #aaa;
+  font-weight: 500;
+  margin-left: auto;
 }
 
-#foodie-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.foodie-card {
+/* Tabs */
+.foodie-tabs {
   display: flex;
   gap: 0;
+  background: #f0f0f0;
+  border-radius: 20px;
+  padding: 3px;
+}
+
+.foodie-tab {
+  padding: 0.38rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.foodie-tab.active { background: #ff2442; color: #fff; }
+.foodie-tab:not(.active):hover { color: #555; }
+
+/* Masonry grid */
+#foodie-list {
+  columns: 2;
+  column-gap: 10px;
+}
+
+/* RedNote card */
+.rn-card {
+  break-inside: avoid;
+  margin-bottom: 10px;
   background: #fff;
   border-radius: 14px;
-  box-shadow: 0 2px 14px rgba(0,0,0,0.07);
   overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.07);
+  cursor: pointer;
   transition: transform 0.18s, box-shadow 0.18s;
-  cursor: default;
-}
-.foodie-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(0,0,0,0.12);
-}
-
-.foodie-photo-wrap {
-  position: relative;
-  flex-shrink: 0;
-  width: 130px;
-}
-
-.foodie-photo {
+  display: inline-block;  /* needed for CSS columns */
   width: 100%;
-  height: 100%;
+}
+.rn-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.13);
+}
+
+/* Photo section */
+.rn-photo-wrap {
+  position: relative;
+  width: 100%;
+  background: linear-gradient(135deg, #2a2a3e, #1a1a2e);
+  min-height: 120px;
+}
+.rn-photo-wrap.rn-no-photo { min-height: 80px; }
+
+.rn-photo {
+  width: 100%;
+  aspect-ratio: 3 / 4;
   object-fit: cover;
   display: block;
 }
 
-.foodie-photo-placeholder {
-  width: 100%;
-  height: 100%;
-  min-height: 130px;
-  background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 2.6rem;
-}
-
-.foodie-rank {
+/* Gradient overlay at bottom of photo */
+.rn-photo-gradient {
   position: absolute;
-  top: 8px;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Restaurant name chip over photo */
+.rn-place-badge {
+  position: absolute;
+  bottom: 8px;
   left: 8px;
-  width: 1.7rem;
-  height: 1.7rem;
-  border-radius: 50%;
-  background: #0f3460;
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-}
-.foodie-rank.gold   { background: #f5a623; color: #1a1a2e; }
-.foodie-rank.silver { background: #9e9e9e; }
-.foodie-rank.bronze { background: #a1673a; }
-
-.foodie-body {
-  flex: 1;
-  padding: 0.9rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-.foodie-name {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #1a1a2e;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.foodie-rating-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.foodie-stars {
-  display: flex;
-  gap: 1px;
-}
-
-.foodie-star {
-  font-size: 0.78rem;
-  color: #ddd;
-}
-.foodie-star.filled { color: #f5c518; }
-.foodie-star.half   { color: #f5c518; opacity: 0.6; }
-
-.foodie-rating-num  { font-size: 0.82rem; font-weight: 700; color: #1a1a2e; }
-.foodie-rating-count { font-size: 0.75rem; color: #888; }
-
-.foodie-address {
-  font-size: 0.78rem;
-  color: #666;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.foodie-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  margin-top: 0.1rem;
-}
-
-.foodie-tag {
+  right: 42px;
   font-size: 0.68rem;
-  font-weight: 600;
-  padding: 0.15rem 0.5rem;
-  border-radius: 20px;
-  background: #f0f4f8;
-  color: #555;
-  text-transform: capitalize;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  pointer-events: none;
 }
 
-.foodie-actions {
+/* Route button over photo */
+.rn-route-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  background: #ff2442;
+  border: none;
+  border-radius: 12px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+  line-height: 1.4;
+}
+.rn-route-btn:hover  { opacity: 0.85; }
+.rn-route-btn:active { transform: scale(0.95); }
+
+/* OSM card (no photo variant) */
+.rn-osm {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  margin-top: auto;
-  padding-top: 0.4rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
 }
-
-.foodie-link {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #0f3460;
-  text-decoration: none;
-  transition: color 0.15s;
-}
-.foodie-link:hover { color: #e94560; }
-
-.foodie-route-btn {
-  font-size: 0.75rem;
-  font-weight: 700;
+.rn-osm-rank {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: #ff2442;
   color: #fff;
-  background: linear-gradient(135deg, #e94560, #c73652);
-  border: none;
-  border-radius: 20px;
-  padding: 0.28rem 0.8rem;
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rn-osm-body { flex: 1; min-width: 0; }
+.rn-osm-name { font-size: 0.82rem; font-weight: 700; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rn-osm-cuisine { font-size: 0.7rem; color: #999; margin-top: 2px; }
+.rn-osm .rn-route-btn { position: static; }
+
+/* Card body */
+.rn-body {
+  padding: 8px 10px 10px;
+}
+
+.rn-text {
+  font-size: 0.78rem;
+  color: #1a1a1a;
+  line-height: 1.55;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+/* Author row */
+.rn-author-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rn-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.rn-avatar-fallback {
+  background: linear-gradient(135deg, #ff2442, #ff6b81);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rn-author-name {
+  font-size: 0.67rem;
+  color: #888;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rn-time {
+  font-size: 0.63rem;
+  color: #bbb;
+  flex-shrink: 0;
   white-space: nowrap;
 }
-.foodie-route-btn:hover  { opacity: 0.88; }
-.foodie-route-btn:active { transform: scale(0.95); }
+
+.rn-rating {
+  font-size: 0.6rem;
+  color: #ff2442;
+  flex-shrink: 0;
+  letter-spacing: -1px;
+}
+
+.rn-empty {
+  font-size: 0.85rem;
+  color: #aaa;
+  text-align: center;
+  padding: 2rem 0;
+  grid-column: 1 / -1;
+}
 
 /* ── Mobile ──────────────────────────────────────────── */
 @media (max-width: 640px) {
@@ -934,6 +981,5 @@ main {
   .place-card { width: 140px; height: 140px; top: 14px; }
   #carousel-track { height: 190px; }
   #active-name { font-size: 0.9rem; }
-  .foodie-photo-wrap { width: 100px; }
-  .foodie-name { font-size: 0.9rem; }
+  #foodie-list { columns: 2; column-gap: 8px; }
 }
