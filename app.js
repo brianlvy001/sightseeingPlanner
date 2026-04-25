@@ -72,24 +72,49 @@ let lastSource = null;
 let markers    = [];
 let carouselIdx = 0;
 
-// ── Carousel navigation ───────────────────────────────────────────────────────
+// ── Carousel navigation (coverflow) ──────────────────────────────────────────
+const CARD_W = 200;
+const CARD_GAP = 16;
+
 function updateCarousel() {
-  const cards = placesList.querySelectorAll('.place-card');
+  const cards = Array.from(placesList.querySelectorAll('.place-card'));
   if (!cards.length) return;
-  const gap  = 12;
-  const cardW = cards[0].offsetWidth + gap;
-  const visible = Math.max(1, Math.floor((carouselTrack.offsetWidth + gap) / cardW));
-  const maxIdx  = Math.max(0, cards.length - visible);
-  carouselIdx   = Math.min(carouselIdx, maxIdx);
-  placesList.style.transform = `translateX(-${carouselIdx * cardW}px)`;
+  const total  = cards.length;
+  const trackW = carouselTrack.offsetWidth;
+
+  // Center active card in track
+  const centerOffset = (trackW - CARD_W) / 2;
+  const scrollOffset = carouselIdx * (CARD_W + CARD_GAP);
+  placesList.style.transform = `translateX(${centerOffset - scrollOffset}px)`;
+
+  cards.forEach((card, i) => {
+    const dist = Math.abs(i - carouselIdx);
+    card.classList.toggle('is-active',   dist === 0);
+    card.classList.toggle('is-adjacent', dist === 1);
+    card.classList.toggle('is-far',      dist >= 2);
+  });
+
   carouselPrev.disabled = carouselIdx === 0;
-  carouselNext.disabled = carouselIdx >= maxIdx;
-  carouselCount.textContent = `${carouselIdx + 1}–${Math.min(carouselIdx + visible, cards.length)} of ${cards.length}`;
+  carouselNext.disabled = carouselIdx >= total - 1;
+  carouselCount.textContent = `${carouselIdx + 1} of ${total}`;
 }
 
 carouselPrev.addEventListener('click', () => { carouselIdx = Math.max(0, carouselIdx - 1); updateCarousel(); });
-carouselNext.addEventListener('click', () => { carouselIdx++; updateCarousel(); });
+carouselNext.addEventListener('click', () => { const cards = placesList.querySelectorAll('.place-card'); carouselIdx = Math.min(cards.length - 1, carouselIdx + 1); updateCarousel(); });
 window.addEventListener('resize', updateCarousel);
+
+// Touch swipe
+let touchStartX = 0;
+carouselTrack.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+carouselTrack.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const cards = placesList.querySelectorAll('.place-card');
+  if (Math.abs(dx) > 40) {
+    if (dx < 0 && carouselIdx < cards.length - 1) carouselIdx++;
+    else if (dx > 0 && carouselIdx > 0) carouselIdx--;
+    updateCarousel();
+  }
+}, { passive: true });
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
@@ -295,8 +320,10 @@ function renderOsmCards(places) {
 function attachCardClicks() {
   placesList.querySelectorAll('.place-card').forEach((card, i) => {
     card.addEventListener('click', () => {
-      placesList.querySelectorAll('.place-card').forEach(c => c.classList.remove('active'));
-      card.classList.add('active');
+      carouselIdx = i;
+      updateCarousel();
+      placesList.querySelectorAll('.place-card').forEach(c => c.classList.remove('map-selected'));
+      card.classList.add('map-selected');
       if (leafletMap && markers[i]) { markers[i].openPopup(); leafletMap.panTo(markers[i].getLatLng()); }
     });
   });
@@ -325,7 +352,9 @@ function renderLeaflet(center, places) {
     const marker = L.marker([lat, lng]).addTo(leafletMap)
       .bindPopup(`<strong>${escHtml(name)}</strong>${extra}`);
     marker.on('click', () => {
-      placesList.querySelectorAll('.place-card').forEach((c, j) => c.classList.toggle('active', j === i));
+      carouselIdx = i;
+      updateCarousel();
+      placesList.querySelectorAll('.place-card').forEach((c, j) => c.classList.toggle('map-selected', j === i));
     });
     markers.push(marker);
   });
