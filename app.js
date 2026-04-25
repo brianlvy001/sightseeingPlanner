@@ -437,7 +437,7 @@ async function fetchAndDrawRoute() {
       }),
     }).addTo(routeLeaflet).bindPopup(routeDestText).openPopup();
 
-    routeLeaflet.fitBounds(routePolyline.getBounds(), { padding: [36, 36] });
+    routeLeaflet.fitBounds(routePolyline.getBounds(), { padding: [70, 70] });
 
     const gmUrl = `https://www.google.com/maps/dir/${lastCenter.lat},${lastCenter.lng}/${routeDestLat},${routeDestLng}`;
     const modeNote = routeMode === 'transit' ? ' (driving — transit via ' : '';
@@ -459,7 +459,7 @@ function loadGoogleRouteFrame() {
   routeFrame.src =
     `https://maps.google.com/maps?saddr=${lastCenter.lat},${lastCenter.lng}` +
     `&daddr=${routeDestLat},${routeDestLng}` +
-    `&dirflg=${dirflg}&output=embed`;
+    `&dirflg=${dirflg}&z=12&output=embed`;
   routeInfoBar.innerHTML =
     `<a href="${gmUrl}" target="_blank" rel="noopener">Open in Google Maps ↗</a>`;
 }
