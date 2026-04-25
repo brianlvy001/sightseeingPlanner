@@ -89,8 +89,12 @@ const FOODIE_TEXT_QUERIES = {
 
 let currentView       = 'map-route';
 let lastFoodiePlaces  = [];
-let foodiePageToken   = null; // next-page token from searchText (null = re-fetch page 1)
+let foodiePool        = [];   // all posts from fetched pages
+let foodiePoolIdx     = 0;   // next index to display from pool
+let foodiePageToken   = null; // next-page token from searchText
 let foodieType        = null; // type used for the current foodie feed
+
+const FOODIE_BATCH = 20;
 let leafletMap   = null;
 let lastCenter   = null;
 let lastPlaces   = [];
@@ -629,8 +633,7 @@ function buildFoodiePosts(places) {
     const photos  = place.photos  || [];
     reviews.forEach((review, ri) => {
       if (!review.text?.text) return;
-      // Skip reviews that would reuse a photo already assigned to an earlier review
-      if (photos.length > 0 && ri >= photos.length) return;
+      // Use photos[ri] directly — reviews beyond the photo count get no photo (no duplicate)
       const photoRef = photos[ri]?.name;
       const photoUrl = photoRef
         ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}`
@@ -836,18 +839,43 @@ function setPullState(state) {
   }
 }
 
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 async function doFoodieRefresh() {
   if (!lastCenter || foodiePullBar.dataset.state === 'refreshing') return;
   setPullState('refreshing');
   try {
-    // Fetch the next page (or re-fetch page 1 when token is exhausted)
-    const { places, nextPageToken } = await fetchFoodiePage(
-      lastCenter, foodieType || typeSelect.value, foodiePageToken
-    );
-    foodiePageToken = nextPageToken;
-    const posts = buildFoodiePosts(places);
-    if (posts.length > 0) {
-      renderPostCards(posts);
+    // If pool has unseen posts, show next batch immediately (no API call needed)
+    if (foodiePoolIdx < foodiePool.length) {
+      const batch = foodiePool.slice(foodiePoolIdx, foodiePoolIdx + FOODIE_BATCH);
+      foodiePoolIdx += FOODIE_BATCH;
+      renderPostCards(batch);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Pool exhausted — try to fetch the next API page
+    if (foodiePageToken) {
+      const { places, nextPageToken } = await fetchFoodiePage(lastCenter, foodieType, foodiePageToken);
+      foodiePageToken = nextPageToken;
+      const newPosts = shuffleArray(buildFoodiePosts(places));
+      foodiePool = [...foodiePool, ...newPosts];
+    } else {
+      // No more API pages — re-shuffle the entire pool and cycle again
+      shuffleArray(foodiePool);
+      foodiePoolIdx = 0;
+    }
+
+    const batch = foodiePool.slice(foodiePoolIdx, foodiePoolIdx + FOODIE_BATCH);
+    foodiePoolIdx += FOODIE_BATCH;
+    if (batch.length > 0) {
+      renderPostCards(batch);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   } catch {
@@ -1059,17 +1087,23 @@ async function fetchFoodiePage(center, type, pageToken = null) {
   };
 }
 
-// Init: fetch page 1 and show its posts. Subsequent refreshes fetch the next page.
+// Init: fetch page 1, build the pool, show first batch.
 async function initFoodieFeed(center, type) {
+  foodiePool      = [];
+  foodiePoolIdx   = 0;
   foodiePageToken = null;
   foodieType      = type;
 
   const { places, nextPageToken } = await fetchFoodiePage(center, type);
   foodiePageToken = nextPageToken;
 
-  const posts = buildFoodiePosts(places);
+  // Sort by score for the first-load pool so top posts appear first
+  foodiePool = buildFoodiePosts(places);
+  const batch = foodiePool.slice(0, FOODIE_BATCH);
+  foodiePoolIdx = FOODIE_BATCH;
+
   foodieTitle.textContent = TYPE_LABELS[type] || 'Top Places';
-  renderPostCards(posts);
+  renderPostCards(batch);
   foodieWrap.classList.remove('hidden');
 }
 
