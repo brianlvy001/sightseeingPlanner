@@ -144,7 +144,7 @@ async function fetchGooglePlaces(center, type) {
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': GAPI_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos.name',
     },
     body: JSON.stringify({
       includedTypes: [type],
@@ -208,7 +208,8 @@ function renderGoogleCards(places, type) {
     const name     = p.displayName?.text || '';
     const count    = p.userRatingCount ? `(${p.userRatingCount.toLocaleString()})` : '';
     const mapsUrl  = p.googleMapsUri || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`;
-    const photoRef = !FOOD_TYPES.has(type) && p.photos?.[0]?.name;
+    const photoIndex = FOOD_TYPES.has(type) ? 1 : 0;
+    const photoRef = (p.photos?.[photoIndex] ?? p.photos?.[0])?.name;
     const photoUrl = photoRef ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}` : '';
     return `<div class="place-card" data-index="${i}">
       ${photoUrl ? `<div class="card-photo-wrap"><img class="card-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.parentElement.remove()"><div class="rank-badge ${badge} badge-over">${i + 1}</div></div>` : `<div class="card-top"><div class="rank-badge ${badge}">${i + 1}</div><div class="place-name">${escHtml(name)}</div></div>`}
