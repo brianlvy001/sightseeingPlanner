@@ -571,7 +571,7 @@ form.addEventListener('submit', async (e) => {
   setStatus('Locating address...');
   carouselWrap.classList.add('hidden');
   showLoading();
-  form.querySelector('button').disabled = true;
+  form.querySelector('[type="submit"]').disabled = true;
 
   try {
     const center = await geocodeNominatim(address);
@@ -605,7 +605,7 @@ form.addEventListener('submit', async (e) => {
     showError(err.message);
     setStatus(err.message, true);
   } finally {
-    form.querySelector('button').disabled = false;
+    form.querySelector('[type="submit"]').disabled = false;
   }
 });
 
