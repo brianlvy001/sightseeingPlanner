@@ -815,7 +815,8 @@ function openPostModal(post) {
     }).join('');
   }
 
-  postScroll.scrollTop = 0;
+  postScroll.scrollTop  = 0;
+  postGallery.scrollLeft = 0;
   postModal.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 }
