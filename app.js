@@ -453,13 +453,30 @@ async function fetchAndDrawRoute() {
 // dirflg codes for the no-key Google Maps iframe URL
 const GMAP_DIRFLG = { driving: 'd', walking: 'w', transit: 'r' };
 
+function routeZoomForDistance(lat1, lng1, lat2, lng2) {
+  const R    = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a    = Math.sin(dLat / 2) ** 2
+             + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180)
+             * Math.sin(dLng / 2) ** 2;
+  const km   = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  if (km < 1)  return 15;
+  if (km < 3)  return 14;
+  if (km < 7)  return 13;
+  if (km < 15) return 12;
+  if (km < 30) return 11;
+  return 10;
+}
+
 function loadGoogleRouteFrame() {
   const dirflg = GMAP_DIRFLG[routeMode] || 'd';
+  const zoom   = routeZoomForDistance(lastCenter.lat, lastCenter.lng, routeDestLat, routeDestLng);
   const gmUrl  = `https://www.google.com/maps/dir/${lastCenter.lat},${lastCenter.lng}/${routeDestLat},${routeDestLng}`;
   routeFrame.src =
     `https://maps.google.com/maps?saddr=${lastCenter.lat},${lastCenter.lng}` +
     `&daddr=${routeDestLat},${routeDestLng}` +
-    `&dirflg=${dirflg}&z=12&output=embed`;
+    `&dirflg=${dirflg}&z=${zoom}&output=embed`;
   routeInfoBar.innerHTML =
     `<a href="${gmUrl}" target="_blank" rel="noopener">Open in Google Maps ↗</a>`;
 }
