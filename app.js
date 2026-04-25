@@ -158,8 +158,7 @@ async function fetchGooglePlaces(center, type) {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const msg = err.error?.message || res.statusText;
-    if (res.status === 403) throw new Error('Google Places denied — check billing and enable "Places API (New)" in Google Cloud Console.');
-    throw new Error(`Google Places error: ${msg}`);
+    throw new Error(`Google Places error (${res.status}): ${msg}`);
   }
   const data = await res.json();
   return (data.places || []).filter(p => p.rating != null).sort((a, b) => b.rating - a.rating).slice(0, 10);
