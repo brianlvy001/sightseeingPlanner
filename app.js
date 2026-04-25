@@ -658,11 +658,20 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Among places with the same name, keep the one closest to center.
+// Strip location qualifiers like "Name - City" or "Name (Downtown)" to get the brand name.
+function brandKey(name) {
+  return name
+    .replace(/\s*[-–—]\s*.+$/, '')   // "Foo - Santa Clara" → "Foo"
+    .replace(/\s*\([^)]*\)\s*$/, '')  // "Foo (Downtown)" → "Foo"
+    .toLowerCase()
+    .trim();
+}
+
+// Among places with the same brand name, keep the one closest to center.
 function deduplicateByName(places, getName, getLat, getLng, center) {
   const seen = new Map();
   for (const p of places) {
-    const key = getName(p).toLowerCase().trim();
+    const key = brandKey(getName(p));
     if (!key) continue;
     if (!seen.has(key)) {
       seen.set(key, p);
