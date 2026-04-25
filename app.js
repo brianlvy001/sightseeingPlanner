@@ -103,6 +103,51 @@ carouselPrev.addEventListener('click', () => { carouselIdx = Math.max(0, carouse
 carouselNext.addEventListener('click', () => { const cards = placesList.querySelectorAll('.place-card'); carouselIdx = Math.min(cards.length - 1, carouselIdx + 1); updateCarousel(); });
 window.addEventListener('resize', updateCarousel);
 
+// Mouse drag
+let isDragging   = false;
+let dragStartX   = 0;
+let dragBase     = 0;
+let dragMoved    = false;
+
+function getCurrentOffset() {
+  const m = (placesList.style.transform || '').match(/translateX\((-?[\d.]+)px\)/);
+  return m ? parseFloat(m[1]) : 0;
+}
+
+carouselTrack.addEventListener('mousedown', e => {
+  if (e.button !== 0) return;
+  isDragging  = true;
+  dragMoved   = false;
+  dragStartX  = e.clientX;
+  dragBase    = getCurrentOffset();
+  placesList.style.transition = 'none';
+  carouselTrack.style.cursor  = 'grabbing';
+  e.preventDefault();
+});
+
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragStartX;
+  if (Math.abs(dx) > 4) dragMoved = true;
+  placesList.style.transform = `translateX(${dragBase + dx}px)`;
+});
+
+window.addEventListener('mouseup', e => {
+  if (!isDragging) return;
+  isDragging = false;
+  carouselTrack.style.cursor = 'grab';
+  placesList.style.transition = '';
+  if (dragMoved) {
+    const dx    = e.clientX - dragStartX;
+    const step  = CARD_W + CARD_GAP;
+    const cards = placesList.querySelectorAll('.place-card');
+    const skip  = Math.max(1, Math.round(Math.abs(dx) / step));
+    if (dx < 0) carouselIdx = Math.min(cards.length - 1, carouselIdx + skip);
+    else        carouselIdx = Math.max(0, carouselIdx - skip);
+  }
+  updateCarousel();
+});
+
 // Touch swipe
 let touchStartX = 0;
 carouselTrack.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
@@ -320,6 +365,7 @@ function renderOsmCards(places) {
 function attachCardClicks() {
   placesList.querySelectorAll('.place-card').forEach((card, i) => {
     card.addEventListener('click', () => {
+      if (dragMoved) return;
       carouselIdx = i;
       updateCarousel();
       placesList.querySelectorAll('.place-card').forEach(c => c.classList.remove('map-selected'));
