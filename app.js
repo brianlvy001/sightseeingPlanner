@@ -37,6 +37,12 @@ const routeInfoBar  = document.getElementById('route-info-bar');
 const routeClose    = document.getElementById('route-close');
 const routeDestName = document.getElementById('route-dest-name');
 const modeBtns      = document.querySelectorAll('.mode-btn');
+const viewTabs      = document.querySelectorAll('.view-tab');
+const mapSourceGroup = document.getElementById('map-source-group');
+const foodieWrap    = document.getElementById('foodie-wrap');
+const foodieList    = document.getElementById('foodie-list');
+const foodieTitle   = document.getElementById('foodie-title');
+const foodieCount   = document.getElementById('foodie-count');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -61,6 +67,7 @@ const TYPE_LABELS = {
   korean_restaurant:     'Top Korean Restaurants',
 };
 
+let currentView  = 'map-route';
 let leafletMap   = null;
 let lastCenter   = null;
 let lastPlaces   = [];
@@ -574,6 +581,114 @@ locateBtn.addEventListener('click', () => {
   );
 });
 
+// ── View switcher ─────────────────────────────────────────────────────────────
+viewTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    currentView = tab.dataset.view;
+    viewTabs.forEach(t => t.classList.toggle('active', t === tab));
+    const isMapRoute = currentView === 'map-route';
+    mapSourceGroup.style.display = isMapRoute ? '' : 'none';
+    // Reset results
+    carouselWrap.classList.add('hidden');
+    mapContainer.classList.add('hidden');
+    foodieWrap.classList.add('hidden');
+    setStatus('');
+  });
+});
+
+// ── Foodie renderer ───────────────────────────────────────────────────────────
+function starsHtml(rating) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.3 && rating - full < 0.8;
+  const empty = 5 - full - (half ? 1 : 0);
+  return '<span class="foodie-stars">'
+    + '★'.repeat(full).split('').map(() => '<span class="foodie-star filled">★</span>').join('')
+    + (half ? '<span class="foodie-star half">★</span>' : '')
+    + '☆'.repeat(empty).split('').map(() => '<span class="foodie-star">☆</span>').join('')
+    + '</span>';
+}
+
+function renderFoodieCards(places, type, source) {
+  foodieTitle.textContent = TYPE_LABELS[type] || 'Top Places';
+  foodieCount.textContent = `${places.length} place${places.length !== 1 ? 's' : ''}`;
+
+  foodieList.innerHTML = places.map((p, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+
+    if (source === 'google') {
+      const name      = p.displayName?.text || '';
+      const rating    = p.rating ?? 0;
+      const count     = p.userRatingCount ?? 0;
+      const address   = p.formattedAddress || '';
+      const gmapsUrl  = p.googleMapsUri || '';
+      const photoIndex = FOOD_TYPES.has(type) ? 1 : 0;
+      const photoRef  = (p.photos?.[photoIndex] ?? p.photos?.[0])?.name;
+      const photoUrl  = photoRef
+        ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=260&key=${GAPI_KEY}`
+        : '';
+      const destLat = p.location.latitude;
+      const destLng = p.location.longitude;
+
+      return `<div class="foodie-card">
+        <div class="foodie-photo-wrap">
+          ${photoUrl
+            ? `<img class="foodie-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\"foodie-photo-placeholder\\">🍽️</div>'">`
+            : '<div class="foodie-photo-placeholder">🍽️</div>'}
+          <div class="foodie-rank ${rankClass}">${i + 1}</div>
+        </div>
+        <div class="foodie-body">
+          <div class="foodie-name">${escHtml(name)}</div>
+          <div class="foodie-rating-row">
+            ${starsHtml(rating)}
+            <span class="foodie-rating-num">${rating.toFixed(1)}</span>
+            <span class="foodie-rating-count">(${count.toLocaleString()})</span>
+          </div>
+          ${address ? `<div class="foodie-address">📍 ${escHtml(address)}</div>` : ''}
+          <div class="foodie-actions">
+            ${gmapsUrl ? `<a class="foodie-link" href="${gmapsUrl}" target="_blank" rel="noopener">View on Maps ↗</a>` : ''}
+            ${lastCenter ? `<button class="foodie-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    } else {
+      const t       = p.tags;
+      const name    = t.name || '';
+      const address = [t['addr:housenumber'], t['addr:street'], t['addr:city']].filter(Boolean).join(' ');
+      const website = t.website || t['contact:website'] || '';
+      const cuisine = (t.cuisine || '').replace(/;/g, ', ').replace(/_/g, ' ');
+      const hours   = t.opening_hours || '';
+      const destLat = p.lat ?? p.center?.lat;
+      const destLng = p.lon ?? p.center?.lon;
+
+      return `<div class="foodie-card">
+        <div class="foodie-photo-wrap">
+          <div class="foodie-photo-placeholder">🍜</div>
+          <div class="foodie-rank ${rankClass}">${i + 1}</div>
+        </div>
+        <div class="foodie-body">
+          <div class="foodie-name">${escHtml(name)}</div>
+          ${cuisine ? `<div class="foodie-tags"><span class="foodie-tag">${escHtml(cuisine)}</span></div>` : ''}
+          ${address ? `<div class="foodie-address">📍 ${escHtml(address)}</div>` : ''}
+          ${hours ? `<div class="foodie-address">🕐 ${escHtml(hours)}</div>` : ''}
+          <div class="foodie-actions">
+            ${website ? `<a class="foodie-link" href="${escHtml(website)}" target="_blank" rel="noopener">Website ↗</a>` : ''}
+            ${lastCenter ? `<button class="foodie-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }
+  }).join('');
+
+  // Wire up route buttons
+  foodieList.querySelectorAll('.foodie-route-btn').forEach(btn => {
+    btn.addEventListener('click', () =>
+      openRouteModal(parseFloat(btn.dataset.lat), parseFloat(btn.dataset.lng), btn.dataset.name)
+    );
+  });
+
+  foodieWrap.classList.remove('hidden');
+}
+
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -584,6 +699,7 @@ form.addEventListener('submit', async (e) => {
 
   setStatus('Locating address...');
   carouselWrap.classList.add('hidden');
+  foodieWrap.classList.add('hidden');
   showLoading();
   form.querySelector('[type="submit"]').disabled = true;
 
@@ -605,16 +721,19 @@ form.addEventListener('submit', async (e) => {
     lastPlaces = places;
     lastSource = source;
 
-    panelTitle.textContent = TYPE_LABELS[type] || 'Top Places';
     setStatus(`Found ${places.length} place${places.length > 1 ? 's' : ''}`);
-    source === 'google' ? renderGoogleCards(places, type) : renderOsmCards(places);
 
-    carouselIdx = 0;
-    carouselWrap.classList.remove('hidden');
-    // Position instantly on first load, then re-enable transitions
-    setTimeout(() => updateCarousel(true), 30);
-
-    source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
+    if (currentView === 'foodie') {
+      mapContainer.classList.add('hidden');
+      renderFoodieCards(places, type, source);
+    } else {
+      panelTitle.textContent = TYPE_LABELS[type] || 'Top Places';
+      source === 'google' ? renderGoogleCards(places, type) : renderOsmCards(places);
+      carouselIdx = 0;
+      carouselWrap.classList.remove('hidden');
+      setTimeout(() => updateCarousel(true), 30);
+      source === 'google' ? renderGoogleMap(center, places) : renderLeaflet(center, places);
+    }
   } catch (err) {
     showError(err.message);
     setStatus(err.message, true);
