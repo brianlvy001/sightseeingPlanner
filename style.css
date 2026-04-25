@@ -973,9 +973,6 @@ main {
 #foodie-pull-bar[data-state="pulling"] {
   color: #ff2442;
 }
-#foodie-pull-bar[data-state="pulling"] #foodie-pull-icon {
-  transform: rotate(180deg);
-}
 #foodie-pull-bar[data-state="refreshing"] {
   color: #ff2442;
 }

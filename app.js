@@ -730,8 +730,8 @@ function setPullState(state) {
     foodiePullIcon.textContent = '↻';
     foodiePullText.textContent = 'Loading new posts…';
   } else {
-    foodiePullIcon.textContent = '↓';
-    foodiePullText.textContent = 'Scroll down for more';
+    foodiePullIcon.textContent = '↑';
+    foodiePullText.textContent = 'Scroll up to refresh';
   }
 }
 
@@ -747,7 +747,7 @@ function doFoodieRefresh() {
   setTimeout(() => {
     renderPostCards(shuffled);
     setPullState('idle');
-    foodieWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, 650);
 }
 
@@ -763,15 +763,15 @@ document.addEventListener('touchstart', e => {
 
 document.addEventListener('touchmove', e => {
   if (currentView !== 'foodie' || !pullWasAtBot) return;
-  const dy = e.touches[0].clientY - pullTouchY;
-  setPullState(dy > 20 ? 'pulling' : 'idle');
+  const dy = e.touches[0].clientY - pullTouchY; // negative = swiping up
+  setPullState(dy < -20 ? 'pulling' : 'idle');
 }, { passive: true });
 
 document.addEventListener('touchend', e => {
   if (currentView !== 'foodie' || !pullWasAtBot) return;
   const dy = e.changedTouches[0].clientY - pullTouchY;
   pullWasAtBot = false;
-  if (dy >= 80) {
+  if (dy <= -80) { // swiped up 80px past the bottom
     doFoodieRefresh();
   } else {
     setPullState('idle');
@@ -786,12 +786,11 @@ document.addEventListener('wheel', e => {
     wheelAccum = 0;
     return;
   }
-  if (!isAtPageBottom() || e.deltaY <= 0) { wheelAccum = 0; return; }
-  wheelAccum += e.deltaY;
+  if (!isAtPageBottom() || e.deltaY >= 0) { wheelAccum = 0; return; }
+  wheelAccum += Math.abs(e.deltaY);
   clearTimeout(wheelTimer);
   wheelTimer = setTimeout(() => { wheelAccum = 0; setPullState('idle'); }, 600);
-  const ratio = Math.min(wheelAccum / 300, 1);
-  setPullState(ratio >= 1 ? 'pulling' : ratio > 0.2 ? 'pulling' : 'idle');
+  setPullState(wheelAccum > 40 ? 'pulling' : 'idle');
   if (wheelAccum >= 300) {
     wheelAccum = 0;
     doFoodieRefresh();
