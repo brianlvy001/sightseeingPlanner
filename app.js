@@ -838,24 +838,19 @@ function openPostModal(post, idx = -1) {
   postMapsLink.href = gmapsUrl;
   postMapsLink.style.display = gmapsUrl ? '' : 'none';
 
-  // Photo gallery — reviewer's photos first, then the rest
+  // Photo gallery — only photos uploaded by this reviewer
   const allPhotos = place.photos || [];
-  const reviewerPhotos = allPhotos.filter(ph =>
-    ph.authorAttributions?.some(a => a.uri && reviewerUri && a.uri === reviewerUri)
-  );
-  const otherPhotos = allPhotos.filter(ph => !reviewerPhotos.includes(ph));
-  const orderedPhotos = [...reviewerPhotos, ...otherPhotos];
+  const reviewerPhotos = reviewerUri
+    ? allPhotos.filter(ph => ph.authorAttributions?.some(a => a.uri === reviewerUri))
+    : [];
 
-  if (orderedPhotos.length === 0) {
+  if (reviewerPhotos.length === 0) {
     postGallery.innerHTML = `<div class="post-gallery-placeholder">🍽️</div>`;
   } else {
-    postGallery.innerHTML = orderedPhotos.map((ph, i) => {
+    postGallery.innerHTML = reviewerPhotos.map((ph, i) => {
       const url = `https://places.googleapis.com/v1/${ph.name}/media?maxWidthPx=800&key=${GAPI_KEY}`;
-      const photoAuthor = ph.authorAttributions?.[0]?.displayName || '';
-      const isReviewer  = reviewerPhotos.includes(ph);
       return `<img class="post-gallery-photo" src="${url}" loading="${i < 3 ? 'eager' : 'lazy'}"
-               alt="${escHtml(name)}" onerror="this.style.display='none'">`
-           + (isReviewer && photoAuthor ? `<div class="post-gallery-author">📷 ${escHtml(photoAuthor)}</div>` : '');
+               alt="${escHtml(name)}" onerror="this.style.display='none'">`;
     }).join('');
   }
 
