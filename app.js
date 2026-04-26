@@ -804,7 +804,8 @@ function openPostModal(post) {
 
   postLocationInfo.innerHTML = `
     <div class="post-location-name">${escHtml(placeName)}</div>
-    ${placeAddress ? `<div class="post-location-address">${escHtml(placeAddress)}</div>` : ''}`;
+    ${placeAddress ? `<div class="post-location-address">${escHtml(placeAddress)}</div>` : ''}
+    ${gmapsUrl ? `<a class="post-maps-open" href="${gmapsUrl}" target="_blank" rel="noopener">🗺️ Open in Google Maps</a>` : ''}`;
 
   if (placeLat && placeLng) {
     const zoom = lastCenter ? routeZoomForDistance(lastCenter.lat, lastCenter.lng, placeLat, placeLng) : 15;
