@@ -687,12 +687,15 @@ function buildFoodiePosts(places) {
   places.forEach(place => {
     const reviews = place.reviews || [];
     const photos  = place.photos  || [];
-    reviews.forEach((review, ri) => {
+    reviews.forEach(review => {
       if (!review.text?.text) return;
-      // Use photos[ri] directly — reviews beyond the photo count get no photo (no duplicate)
-      const photoRef = photos[ri]?.name;
-      const photoUrl = photoRef
-        ? `https://places.googleapis.com/v1/${photoRef}/media?maxWidthPx=400&key=${GAPI_KEY}`
+      // Only use a photo uploaded by this specific reviewer
+      const reviewerUri   = review.authorAttribution?.uri || '';
+      const reviewerPhoto = reviewerUri
+        ? photos.find(ph => ph.authorAttributions?.some(a => a.uri === reviewerUri))
+        : null;
+      const photoUrl = reviewerPhoto
+        ? `https://places.googleapis.com/v1/${reviewerPhoto.name}/media?maxWidthPx=400&key=${GAPI_KEY}`
         : '';
       const ts = new Date(review.publishTime || 0).getTime();
       const ageMonths    = (now - ts) / (1000 * 60 * 60 * 24 * 30);
