@@ -681,6 +681,19 @@ viewTabs.forEach(tab => {
 
 // ── Foodie / RedNote renderer ─────────────────────────────────────────────────
 
+// Extract the numeric contributor ID from a Google Maps profile URI so that
+// URIs with different path suffixes (/reviews, /photos, bare) still match.
+function contributorId(uri) {
+  const m = (uri || '').match(/\/contrib\/(\d+)/);
+  return m ? m[1] : uri;
+}
+
+function sameContributor(uriA, uriB) {
+  const a = contributorId(uriA);
+  const b = contributorId(uriB);
+  return a && b && a === b;
+}
+
 function buildFoodiePosts(places) {
   const now  = Date.now();
   const posts = [];
@@ -693,25 +706,25 @@ function buildFoodiePosts(places) {
       if (!review.text?.text) return;
       const reviewerUri = review.authorAttribution?.uri || '';
 
-      // Prefer the reviewer's own uploaded photo
-      const reviewerPhoto = reviewerUri
-        ? photos.find(ph => ph.authorAttributions?.some(a => a.uri === reviewerUri))
-        : null;
+      // All photos confirmed to belong to this reviewer (normalized URI match)
+      const reviewerPhotos = reviewerUri
+        ? photos.filter(ph => ph.authorAttributions?.some(a => sameContributor(a.uri, reviewerUri)))
+        : [];
 
-      // Fall back to the next unused place photo so cards always have an image
-      let photo = reviewerPhoto;
-      if (!photo && fallbackIdx < photos.length) {
-        photo = photos[fallbackIdx++];
+      // Feed card photo: reviewer's first photo, or next unused place photo as fallback
+      let cardPhoto = reviewerPhotos[0] || null;
+      if (!cardPhoto && fallbackIdx < photos.length) {
+        cardPhoto = photos[fallbackIdx++];
       }
 
-      const photoUrl = photo
-        ? `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=400&key=${GAPI_KEY}`
+      const photoUrl = cardPhoto
+        ? `https://places.googleapis.com/v1/${cardPhoto.name}/media?maxWidthPx=400&key=${GAPI_KEY}`
         : '';
       const ts = new Date(review.publishTime || 0).getTime();
       const ageMonths    = (now - ts) / (1000 * 60 * 60 * 24 * 30);
       const recencyScore = Math.max(0, 1 - ageMonths / 12);
       const score        = (review.rating || 0) / 5 * 0.6 + recencyScore * 0.4;
-      posts.push({ place, review, photoUrl, ts, score });
+      posts.push({ place, review, photoUrl, reviewerPhotos, ts, score });
     });
   });
   posts.sort((a, b) => b.score - a.score);
@@ -848,11 +861,16 @@ function openPostModal(post, idx = -1) {
   postMapsLink.href = gmapsUrl;
   postMapsLink.style.display = gmapsUrl ? '' : 'none';
 
-  // Photo gallery — only photos uploaded by this reviewer
+  // Photo gallery — only photos confirmed to belong to this reviewer
   const allPhotos = place.photos || [];
-  const reviewerPhotos = reviewerUri
-    ? allPhotos.filter(ph => ph.authorAttributions?.some(a => a.uri === reviewerUri))
+  let reviewerPhotos = reviewerUri
+    ? allPhotos.filter(ph => ph.authorAttributions?.some(a => sameContributor(a.uri, reviewerUri)))
     : [];
+
+  // Fall back to photos already matched during feed construction (same logic, same data)
+  if (reviewerPhotos.length === 0 && post.reviewerPhotos?.length) {
+    reviewerPhotos = post.reviewerPhotos;
+  }
 
   if (reviewerPhotos.length === 0) {
     postGallery.innerHTML = `<div class="post-gallery-placeholder">🍽️</div>`;
