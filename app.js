@@ -65,31 +65,80 @@ const CQ = (cuisine) =>
   `(node["amenity"="restaurant"]["cuisine"="${cuisine}"]["name"](around:${RADIUS_M},LAT,LNG);` +
   ` way["amenity"="restaurant"]["cuisine"="${cuisine}"]["name"](around:${RADIUS_M},LAT,LNG););`;
 
+const ALL_RESTAURANTS =
+  `(node["amenity"="restaurant"]["name"](around:${RADIUS_M},LAT,LNG);` +
+  ` way["amenity"="restaurant"]["name"](around:${RADIUS_M},LAT,LNG););`;
+
+const BAKERY_QUERY =
+  `(node["shop"="bakery"]["name"](around:${RADIUS_M},LAT,LNG);` +
+  ` way["shop"="bakery"]["name"](around:${RADIUS_M},LAT,LNG);` +
+  ` node["amenity"="cafe"]["name"](around:${RADIUS_M},LAT,LNG);` +
+  ` way["amenity"="cafe"]["name"](around:${RADIUS_M},LAT,LNG););`;
+
 const OVERPASS_QUERIES = {
+  restaurant:            ALL_RESTAURANTS,
   asian_restaurant:      CQ('asian'),
   chinese_restaurant:    CQ('chinese'),
-  thai_restaurant:       CQ('thai'),
   japanese_restaurant:   CQ('japanese'),
-  vietnamese_restaurant: CQ('vietnamese'),
   korean_restaurant:     CQ('korean'),
+  thai_restaurant:       CQ('thai'),
+  vietnamese_restaurant: CQ('vietnamese'),
+  american_restaurant:   CQ('american'),
+  european_restaurant:   ALL_RESTAURANTS,
+  italian_restaurant:    CQ('italian'),
+  french_restaurant:     CQ('french'),
+  mexican_restaurant:    CQ('mexican'),
+  bakery:                BAKERY_QUERY,
+  seafood_restaurant:    CQ('seafood'),
+  pizza_restaurant:      CQ('pizza'),
+  sushi_restaurant:      CQ('sushi'),
+  ramen_restaurant:      CQ('ramen'),
 };
 
 const TYPE_LABELS = {
+  restaurant:            'Top Restaurants',
   asian_restaurant:      'Top Asian Restaurants',
   chinese_restaurant:    'Top Chinese Restaurants',
-  thai_restaurant:       'Top Thai Restaurants',
   japanese_restaurant:   'Top Japanese Restaurants',
-  vietnamese_restaurant: 'Top Vietnamese Restaurants',
   korean_restaurant:     'Top Korean Restaurants',
+  thai_restaurant:       'Top Thai Restaurants',
+  vietnamese_restaurant: 'Top Vietnamese Restaurants',
+  american_restaurant:   'Top American Restaurants',
+  european_restaurant:   'Top European Restaurants',
+  italian_restaurant:    'Top Italian Restaurants',
+  french_restaurant:     'Top French Restaurants',
+  mexican_restaurant:    'Top Mexican Restaurants',
+  bakery:                'Top Bakeries & Cafés',
+  seafood_restaurant:    'Top Seafood Restaurants',
+  pizza_restaurant:      'Top Pizza Places',
+  sushi_restaurant:      'Top Sushi Restaurants',
+  ramen_restaurant:      'Top Ramen Restaurants',
 };
 
 const FOODIE_TEXT_QUERIES = {
+  restaurant:            'restaurant',
   asian_restaurant:      'asian restaurant',
   chinese_restaurant:    'chinese restaurant',
-  thai_restaurant:       'thai restaurant',
   japanese_restaurant:   'japanese restaurant',
-  vietnamese_restaurant: 'vietnamese restaurant',
   korean_restaurant:     'korean restaurant',
+  thai_restaurant:       'thai restaurant',
+  vietnamese_restaurant: 'vietnamese restaurant',
+  american_restaurant:   'american restaurant',
+  european_restaurant:   'european restaurant',
+  italian_restaurant:    'italian restaurant',
+  french_restaurant:     'french restaurant',
+  mexican_restaurant:    'mexican restaurant',
+  bakery:                'bakery cafe',
+  seafood_restaurant:    'seafood restaurant',
+  pizza_restaurant:      'pizza restaurant',
+  sushi_restaurant:      'sushi restaurant',
+  ramen_restaurant:      'ramen restaurant',
+};
+
+// Maps our category keys to valid Google Places API includedTypes.
+// 'european_restaurant' is not a real API type — fall back to 'restaurant'.
+const GOOGLE_PLACE_TYPES = {
+  european_restaurant: 'restaurant',
 };
 
 let currentView       = 'foodie';
@@ -1156,12 +1205,18 @@ async function initFoodieFeed(center, type) {
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────
 const GAPI_KEY = 'AIzaSyBvQza0NnKLqOXtNvYOs1-lcPXT6ghWCXM';
 const FOOD_TYPES = new Set([
-  'asian_restaurant', 'chinese_restaurant', 'thai_restaurant',
-  'japanese_restaurant', 'vietnamese_restaurant', 'korean_restaurant',
+  'restaurant',
+  'asian_restaurant',   'chinese_restaurant',  'japanese_restaurant',
+  'korean_restaurant',  'thai_restaurant',     'vietnamese_restaurant',
+  'american_restaurant','european_restaurant', 'italian_restaurant',
+  'french_restaurant',  'mexican_restaurant',  'bakery',
+  'seafood_restaurant', 'pizza_restaurant',    'sushi_restaurant',
+  'ramen_restaurant',
 ]);
 
 async function fetchGooglePlaces(center, type, withReviews = false, rankPreference = 'POPULARITY') {
   const baseFields = 'places.id,places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.location,places.googleMapsUri,places.photos.name,places.photos.authorAttributions';
+  const apiType = GOOGLE_PLACE_TYPES[type] || type;
   const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
     method: 'POST',
     headers: {
@@ -1170,7 +1225,7 @@ async function fetchGooglePlaces(center, type, withReviews = false, rankPreferen
       'X-Goog-FieldMask': withReviews ? baseFields + ',places.reviews' : baseFields,
     },
     body: JSON.stringify({
-      includedTypes: [type],
+      includedTypes: [apiType],
       maxResultCount: 20,
       locationRestriction: {
         circle: { center: { latitude: center.lat, longitude: center.lng }, radius: RADIUS_M },

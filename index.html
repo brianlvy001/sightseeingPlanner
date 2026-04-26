@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=57" />
+  <link rel="stylesheet" href="style.css?v=58" />
 </head>
 <body>
   <header>
@@ -34,13 +34,28 @@
       <div class="filter-group">
         <label for="type-select">🔍 Category</label>
         <select id="type-select">
-          <optgroup label="🍜 Asian Cuisine">
-            <option value="asian_restaurant">Asian Restaurants</option>
-            <option value="chinese_restaurant">Chinese Restaurants</option>
-            <option value="thai_restaurant">Thai Restaurants</option>
-            <option value="japanese_restaurant">Japanese Restaurants</option>
-            <option value="vietnamese_restaurant">Vietnamese Restaurants</option>
-            <option value="korean_restaurant">Korean Restaurants</option>
+          <option value="restaurant">🍽️ All Foods</option>
+          <optgroup label="🌏 Asian">
+            <option value="asian_restaurant">Asian</option>
+            <option value="chinese_restaurant">Chinese</option>
+            <option value="japanese_restaurant">Japanese</option>
+            <option value="korean_restaurant">Korean</option>
+            <option value="thai_restaurant">Thai</option>
+            <option value="vietnamese_restaurant">Vietnamese</option>
+          </optgroup>
+          <optgroup label="🌎 Western">
+            <option value="american_restaurant">American</option>
+            <option value="european_restaurant">European</option>
+            <option value="italian_restaurant">Italian</option>
+            <option value="french_restaurant">French</option>
+            <option value="mexican_restaurant">Mexican</option>
+          </optgroup>
+          <optgroup label="✨ Specialty">
+            <option value="bakery">Bakery &amp; Café</option>
+            <option value="seafood_restaurant">Seafood</option>
+            <option value="pizza_restaurant">Pizza</option>
+            <option value="sushi_restaurant">Sushi</option>
+            <option value="ramen_restaurant">Ramen</option>
           </optgroup>
         </select>
       </div>
@@ -177,6 +192,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=57"></script>
+  <script src="app.js?v=58"></script>
 </body>
 </html>
