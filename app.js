@@ -685,17 +685,27 @@ function buildFoodiePosts(places) {
   const now  = Date.now();
   const posts = [];
   places.forEach(place => {
-    const reviews = place.reviews || [];
-    const photos  = place.photos  || [];
+    const reviews   = place.reviews || [];
+    const photos    = place.photos  || [];
+    let fallbackIdx = 0; // cycles through place photos for reviews without their own photo
+
     reviews.forEach(review => {
       if (!review.text?.text) return;
-      // Only use a photo uploaded by this specific reviewer
-      const reviewerUri   = review.authorAttribution?.uri || '';
+      const reviewerUri = review.authorAttribution?.uri || '';
+
+      // Prefer the reviewer's own uploaded photo
       const reviewerPhoto = reviewerUri
         ? photos.find(ph => ph.authorAttributions?.some(a => a.uri === reviewerUri))
         : null;
-      const photoUrl = reviewerPhoto
-        ? `https://places.googleapis.com/v1/${reviewerPhoto.name}/media?maxWidthPx=400&key=${GAPI_KEY}`
+
+      // Fall back to the next unused place photo so cards always have an image
+      let photo = reviewerPhoto;
+      if (!photo && fallbackIdx < photos.length) {
+        photo = photos[fallbackIdx++];
+      }
+
+      const photoUrl = photo
+        ? `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=400&key=${GAPI_KEY}`
         : '';
       const ts = new Date(review.publishTime || 0).getTime();
       const ageMonths    = (now - ts) / (1000 * 60 * 60 * 24 * 30);
