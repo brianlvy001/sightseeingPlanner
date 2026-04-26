@@ -43,6 +43,11 @@ const scrubberThumb = document.getElementById('scrubber-thumb');
 const scrPrev       = document.getElementById('scr-prev');
 const scrNext       = document.getElementById('scr-next');
 const locateBtn     = document.getElementById('locate-btn');
+const searchPill      = document.getElementById('search-pill');
+const searchPillText  = document.getElementById('search-pill-text');
+const searchBackdrop  = document.getElementById('search-backdrop');
+const searchSheet     = document.getElementById('search-sheet');
+const searchSheetClose = document.getElementById('search-sheet-close');
 const routeModal    = document.getElementById('route-modal');
 const routeFrame    = document.getElementById('route-frame');
 const routeMapEl    = document.getElementById('route-map');
@@ -1045,6 +1050,29 @@ function initFeedObserver() {
   feedObserver.observe(foodiePullBar);
 }
 
+// ── Search sheet open / close ─────────────────────────────────────────────────
+function openSearchSheet() {
+  searchSheet.classList.add('open');
+  searchBackdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  setTimeout(() => input.focus(), 80);
+}
+
+function closeSearchSheet() {
+  searchSheet.classList.remove('open');
+  searchBackdrop.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function updateSearchPill(location, type) {
+  const cat = TYPE_LABELS[type] || 'All Foods';
+  searchPillText.textContent = `${location}  ·  ${cat}`;
+}
+
+searchPill.addEventListener('click', openSearchSheet);
+searchBackdrop.addEventListener('click', closeSearchSheet);
+searchSheetClose.addEventListener('click', closeSearchSheet);
+
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1068,7 +1096,9 @@ form.addEventListener('submit', async (e) => {
     if (currentView === 'foodie' && source === 'google') {
       mapContainer.classList.add('hidden');
       await initFoodieFeed(center, type);
-      setStatus(`Loaded posts from nearby ${TYPE_LABELS[type] || 'places'}`);
+      closeSearchSheet();
+      updateSearchPill(address, type);
+      setStatus('');
     } else {
       const places = source === 'google'
         ? await fetchGooglePlaces(center, type)
@@ -1538,6 +1568,7 @@ async function autoLoad() {
   try {
     lastCenter = center;
     await initFoodieFeed(center, type);
+    updateSearchPill(input.value, type);
     setStatus('');
   } catch (err) {
     setStatus(err.message, true);

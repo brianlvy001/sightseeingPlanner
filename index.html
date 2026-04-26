@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=68" />
+  <link rel="stylesheet" href="style.css?v=69" />
 </head>
 <body>
   <header>
@@ -14,59 +14,16 @@
   </header>
 
   <main>
-    <form id="search-form" class="filter-card">
-      <div class="filter-group wide">
-        <label for="address-input">📍 Address</label>
-        <div class="input-row">
-          <input id="address-input" type="text" placeholder="Enter an address or city..." autocomplete="off" required />
-          <button id="locate-btn" type="button" title="Use my current location">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
-              <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-      <div class="filter-group">
-        <label for="type-select">🔍 Category</label>
-        <select id="type-select">
-          <option value="restaurant">🍽️ All Foods</option>
-          <optgroup label="🌏 Asian">
-            <option value="asian_restaurant">Asian</option>
-            <option value="chinese_restaurant">Chinese</option>
-            <option value="japanese_restaurant">Japanese</option>
-            <option value="korean_restaurant">Korean</option>
-            <option value="thai_restaurant">Thai</option>
-            <option value="vietnamese_restaurant">Vietnamese</option>
-          </optgroup>
-          <optgroup label="🌎 Western">
-            <option value="american_restaurant">American</option>
-            <option value="european_restaurant">European</option>
-            <option value="italian_restaurant">Italian</option>
-            <option value="french_restaurant">French</option>
-            <option value="mexican_restaurant">Mexican</option>
-          </optgroup>
-          <optgroup label="✨ Specialty">
-            <option value="bakery">Bakery &amp; Café</option>
-            <option value="seafood_restaurant">Seafood</option>
-            <option value="pizza_restaurant">Pizza</option>
-            <option value="sushi_restaurant">Sushi</option>
-            <option value="ramen_restaurant">Ramen</option>
-          </optgroup>
-        </select>
-      </div>
-      <div class="filter-group" id="map-source-group" style="display:none">
-        <label for="map-source">🗺️ Map Source</label>
-        <select id="map-source">
-          <option value="google">Google Maps</option>
-          <option value="osm">OpenStreetMap</option>
-        </select>
-      </div>
-      <div class="filter-group btn-group">
-        <label>&nbsp;</label>
-        <button type="submit">🔍 Find Places</button>
-      </div>
-    </form>
+    <!-- Sticky search pill — tap to open search sheet -->
+    <button id="search-pill" class="search-pill" aria-label="Change search">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ff2442" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <span id="search-pill-text" class="search-pill-text">Exploring nearby…</span>
+      <svg class="search-pill-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
 
     <div id="status"></div>
 
@@ -187,7 +144,67 @@
     </div>
   </div>
 
+  <!-- Search bottom sheet -->
+  <div id="search-backdrop" class="search-backdrop"></div>
+  <div id="search-sheet" class="search-sheet" role="dialog" aria-modal="true" aria-label="Find Places">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">Find Places</span>
+      <button id="search-sheet-close" class="sheet-close" aria-label="Close">&times;</button>
+    </div>
+    <form id="search-form">
+      <div class="sheet-field">
+        <label for="address-input">📍 Address</label>
+        <div class="input-row">
+          <input id="address-input" type="text" placeholder="Enter an address or city…" autocomplete="off" required />
+          <button id="locate-btn" type="button" title="Use my current location">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+              <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="sheet-field">
+        <label for="type-select">🍽️ Category</label>
+        <select id="type-select">
+          <option value="restaurant">🍽️ All Foods</option>
+          <optgroup label="🌏 Asian">
+            <option value="asian_restaurant">Asian</option>
+            <option value="chinese_restaurant">Chinese</option>
+            <option value="japanese_restaurant">Japanese</option>
+            <option value="korean_restaurant">Korean</option>
+            <option value="thai_restaurant">Thai</option>
+            <option value="vietnamese_restaurant">Vietnamese</option>
+          </optgroup>
+          <optgroup label="🌎 Western">
+            <option value="american_restaurant">American</option>
+            <option value="european_restaurant">European</option>
+            <option value="italian_restaurant">Italian</option>
+            <option value="french_restaurant">French</option>
+            <option value="mexican_restaurant">Mexican</option>
+          </optgroup>
+          <optgroup label="✨ Specialty">
+            <option value="bakery">Bakery &amp; Café</option>
+            <option value="seafood_restaurant">Seafood</option>
+            <option value="pizza_restaurant">Pizza</option>
+            <option value="sushi_restaurant">Sushi</option>
+            <option value="ramen_restaurant">Ramen</option>
+          </optgroup>
+        </select>
+      </div>
+      <!-- kept for JS compatibility, never shown -->
+      <div id="map-source-group" style="display:none">
+        <select id="map-source">
+          <option value="google">Google Maps</option>
+          <option value="osm">OpenStreetMap</option>
+        </select>
+      </div>
+      <button type="submit" class="sheet-submit-btn">🔍 Find Places</button>
+    </form>
+  </div>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=68"></script>
+  <script src="app.js?v=69"></script>
 </body>
 </html>

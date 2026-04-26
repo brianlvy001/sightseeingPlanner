@@ -19,9 +19,162 @@ header h1 { font-size: 1.8rem; font-weight: 700; }
 
 main {
   max-width: 1100px;
-  margin: 1.5rem auto;
+  margin: 1rem auto;
   padding: 0 1rem;
 }
+
+/* ── Search pill ─────────────────────────────────────── */
+.search-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto 1rem;
+  padding: 11px 16px;
+  background: #fff;
+  border: none;
+  border-radius: 40px;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.13);
+  cursor: pointer;
+  position: sticky;
+  top: 10px;
+  z-index: 100;
+  text-align: left;
+  transition: box-shadow 0.2s, transform 0.1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.search-pill:hover  { box-shadow: 0 4px 22px rgba(0,0,0,0.18); }
+.search-pill:active { transform: scale(0.98); }
+.search-pill-text {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #1a1a2e;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-pill-chevron { flex-shrink: 0; }
+
+/* ── Search bottom sheet ─────────────────────────────── */
+.search-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.46);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 1100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s;
+}
+.search-backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.search-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: 560px;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  padding: 0 20px 36px;
+  z-index: 1101;
+  box-shadow: 0 -6px 40px rgba(0,0,0,0.18);
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.search-sheet.open {
+  transform: translateX(-50%) translateY(0);
+}
+
+.sheet-handle {
+  width: 38px;
+  height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+  margin: 12px auto 4px;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0 16px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 18px;
+}
+.sheet-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+.sheet-close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f2f2;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sheet-close:hover { background: #e5e5e5; }
+
+.sheet-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 14px;
+}
+.sheet-field label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sheet-field input,
+.sheet-field select {
+  padding: 0.65rem 0.9rem;
+  font-size: 0.95rem;
+  border: 2px solid #e2e6ea;
+  border-radius: 10px;
+  outline: none;
+  background: #f8f9fb;
+  transition: border-color 0.2s, background 0.2s;
+  width: 100%;
+}
+.sheet-field input:focus,
+.sheet-field select:focus {
+  border-color: #0f3460;
+  background: #fff;
+}
+
+.sheet-submit-btn {
+  width: 100%;
+  padding: 0.82rem;
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #e94560, #c73652);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.sheet-submit-btn:hover   { opacity: 0.9; }
+.sheet-submit-btn:active  { transform: scale(0.98); }
+.sheet-submit-btn:disabled { background: #aaa; cursor: not-allowed; }
 
 /* ── Filter card ─────────────────────────────────────── */
 .filter-card {
@@ -821,10 +974,10 @@ main {
 .rn-photo-gradient { display: none; }
 .rn-place-badge    { display: none; }
 
-/* Google Maps attribution pill — bottom-right corner of photo */
+/* Google Maps attribution pill — top-right corner of photo */
 .rn-gmaps-badge {
   position: absolute;
-  bottom: 6px;
+  top: 6px;
   right: 6px;
   display: flex;
   align-items: center;
