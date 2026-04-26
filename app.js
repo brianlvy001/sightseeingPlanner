@@ -739,45 +739,51 @@ function renderFoodieCards(places, type, source) {
   foodieWrap.classList.remove('hidden');
 }
 
-function renderPostCards(posts) {
-  foodieList._posts = posts;   // store for click handler lookup
-  foodieCount.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
+function postCardHtml({ place, review, photoUrl }) {
+  const name      = place.displayName?.text || '';
+  const author    = review.authorAttribution?.displayName || 'Anonymous';
+  const avatarUrl = review.authorAttribution?.photoUri || '';
+  const rating    = review.rating || 0;
+  const text      = review.text?.text || '';
+  return `<div class="rn-card">
+    <div class="rn-photo-wrap">
+      ${photoUrl
+        ? `<img class="rn-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.closest('.rn-photo-wrap').classList.add('rn-no-photo')">`
+        : ''}
+      <div class="rn-photo-gradient"></div>
+      <div class="rn-place-badge">${escHtml(name)}</div>
+    </div>
+    <div class="rn-body">
+      <p class="rn-text">${escHtml(text)}</p>
+      <div class="rn-author-row">
+        ${avatarUrl
+          ? `<img class="rn-avatar" src="${avatarUrl}" alt="${escHtml(author)}" referrerpolicy="no-referrer">`
+          : `<div class="rn-avatar rn-avatar-fallback">${escHtml(author[0] || '?')}</div>`}
+        <span class="rn-author-name">${escHtml(author)}</span>
+        <span class="rn-rating" title="${rating} stars">${rnStars(rating)}</span>
+      </div>
+    </div>
+  </div>`;
+}
 
+function renderPostCards(posts) {
+  foodieList._posts = posts;
+  foodieCount.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
   if (posts.length === 0) {
     foodieList.innerHTML = '<p class="rn-empty">No reviews with text found. Try a different area.</p>';
-    wireRouteButtons();
     return;
   }
+  foodieList.innerHTML = posts.map(postCardHtml).join('');
+}
 
-  foodieList.innerHTML = posts.map(({ place, review, photoUrl }) => {
-    const name      = place.displayName?.text || '';
-    const author    = review.authorAttribution?.displayName || 'Anonymous';
-    const avatarUrl = review.authorAttribution?.photoUri || '';
-    const rating    = review.rating || 0;
-    const timeAgo   = review.relativePublishTimeDescription || '';
-    const text      = review.text?.text || '';
-
-    return `<div class="rn-card">
-      <div class="rn-photo-wrap">
-        ${photoUrl
-          ? `<img class="rn-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.closest('.rn-photo-wrap').classList.add('rn-no-photo')">`
-          : ''}
-        <div class="rn-photo-gradient"></div>
-        <div class="rn-place-badge">${escHtml(name)}</div>
-      </div>
-      <div class="rn-body">
-        <p class="rn-text">${escHtml(text)}</p>
-        <div class="rn-author-row">
-          ${avatarUrl
-            ? `<img class="rn-avatar" src="${avatarUrl}" alt="${escHtml(author)}" referrerpolicy="no-referrer">`
-            : `<div class="rn-avatar rn-avatar-fallback">${escHtml(author[0] || '?')}</div>`}
-          <span class="rn-author-name">${escHtml(author)}</span>
-          <span class="rn-time">${escHtml(timeAgo)}</span>
-          <span class="rn-rating" title="${rating} stars">${rnStars(rating)}</span>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+function appendPostCards(newPosts) {
+  if (!newPosts.length) return;
+  const allPosts = foodieList._posts || [];
+  foodieList._posts = [...allPosts, ...newPosts];
+  foodieCount.textContent = `${foodieList._posts.length} post${foodieList._posts.length !== 1 ? 's' : ''}`;
+  const temp = document.createElement('div');
+  temp.innerHTML = newPosts.map(postCardHtml).join('');
+  while (temp.firstChild) foodieList.appendChild(temp.firstChild);
 }
 
 function wireRouteButtons() {
@@ -915,22 +921,16 @@ document.addEventListener('click', e => {
   if (renderedPosts?.[idx]) openPostModal(renderedPosts[idx], idx);
 });
 
-// ── Pull-to-refresh at bottom (Foodie mode only) ──────────────────────────────
-function isAtPageBottom() {
-  return window.innerHeight + window.scrollY >= document.body.scrollHeight - 80;
-}
+// ── Infinite scroll (Foodie mode) ────────────────────────────────────────────
 
 function setPullState(state) {
   foodiePullBar.dataset.state = state;
-  if (state === 'pulling') {
-    foodiePullIcon.textContent = '↑';
-    foodiePullText.textContent = 'Release to refresh';
-  } else if (state === 'refreshing') {
+  if (state === 'refreshing') {
     foodiePullIcon.textContent = '↻';
-    foodiePullText.textContent = 'Loading new posts…';
+    foodiePullText.textContent = 'Loading more posts…';
   } else {
-    foodiePullIcon.textContent = '↑';
-    foodiePullText.textContent = 'Scroll up to refresh';
+    foodiePullIcon.textContent = '';
+    foodiePullText.textContent = '';
   }
 }
 
@@ -946,32 +946,27 @@ async function doFoodieRefresh() {
   if (!lastCenter || foodiePullBar.dataset.state === 'refreshing') return;
   setPullState('refreshing');
   try {
-    // If pool has unseen posts, show next batch immediately (no API call needed)
     if (foodiePoolIdx < foodiePool.length) {
+      // Unseen posts remain in pool — append next batch without an API call
       const batch = foodiePool.slice(foodiePoolIdx, foodiePoolIdx + FOODIE_BATCH);
       foodiePoolIdx += FOODIE_BATCH;
-      renderPostCards(batch);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
-    }
-
-    // Pool exhausted — try to fetch the next API page
-    if (foodiePageToken) {
+      appendPostCards(batch);
+    } else if (foodiePageToken) {
+      // Pool exhausted — fetch the next API page and append
       const { places, nextPageToken } = await fetchFoodiePage(lastCenter, foodieType, foodiePageToken);
       foodiePageToken = nextPageToken;
       const newPosts = shuffleArray(buildFoodiePosts(places));
       foodiePool = [...foodiePool, ...newPosts];
+      const batch = foodiePool.slice(foodiePoolIdx, foodiePoolIdx + FOODIE_BATCH);
+      foodiePoolIdx += FOODIE_BATCH;
+      appendPostCards(batch);
     } else {
-      // No more API pages — re-shuffle the entire pool and cycle again
+      // All API pages exhausted — cycle: re-shuffle pool and append from the start
       shuffleArray(foodiePool);
       foodiePoolIdx = 0;
-    }
-
-    const batch = foodiePool.slice(foodiePoolIdx, foodiePoolIdx + FOODIE_BATCH);
-    foodiePoolIdx += FOODIE_BATCH;
-    if (batch.length > 0) {
-      renderPostCards(batch);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const batch = foodiePool.slice(0, FOODIE_BATCH);
+      foodiePoolIdx = FOODIE_BATCH;
+      appendPostCards(batch);
     }
   } catch {
     // keep existing posts on failure
@@ -980,51 +975,16 @@ async function doFoodieRefresh() {
   }
 }
 
-// Touch — fires on any scroll surface
-let pullTouchY   = 0;
-let pullWasAtBot = false;
+// IntersectionObserver — fires when the pull bar scrolls into view
+let feedObserver = null;
 
-document.addEventListener('touchstart', e => {
-  if (currentView !== 'foodie') return;
-  pullWasAtBot = isAtPageBottom();
-  pullTouchY   = pullWasAtBot ? e.touches[0].clientY : 0;
-}, { passive: true });
-
-document.addEventListener('touchmove', e => {
-  if (currentView !== 'foodie' || !pullWasAtBot) return;
-  const dy = e.touches[0].clientY - pullTouchY; // negative = swiping up
-  setPullState(dy < -20 ? 'pulling' : 'idle');
-}, { passive: true });
-
-document.addEventListener('touchend', e => {
-  if (currentView !== 'foodie' || !pullWasAtBot) return;
-  const dy = e.changedTouches[0].clientY - pullTouchY;
-  pullWasAtBot = false;
-  if (dy <= -80) { // swiped up 80px past the bottom
-    doFoodieRefresh();
-  } else {
-    setPullState('idle');
-  }
-});
-
-// Mouse wheel — accumulate overscroll at the bottom
-let wheelAccum = 0;
-let wheelTimer = null;
-document.addEventListener('wheel', e => {
-  if (currentView !== 'foodie' || !lastCenter || foodiePullBar.dataset.state === 'refreshing') {
-    wheelAccum = 0;
-    return;
-  }
-  if (!isAtPageBottom() || e.deltaY >= 0) { wheelAccum = 0; return; }
-  wheelAccum += Math.abs(e.deltaY);
-  clearTimeout(wheelTimer);
-  wheelTimer = setTimeout(() => { wheelAccum = 0; setPullState('idle'); }, 600);
-  setPullState(wheelAccum > 40 ? 'pulling' : 'idle');
-  if (wheelAccum >= 300) {
-    wheelAccum = 0;
-    doFoodieRefresh();
-  }
-}, { passive: true });
+function initFeedObserver() {
+  if (feedObserver) feedObserver.disconnect();
+  feedObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) doFoodieRefresh();
+  }, { rootMargin: '0px 0px 200px 0px' });
+  feedObserver.observe(foodiePullBar);
+}
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
@@ -1182,8 +1142,9 @@ async function fetchFoodiePage(center, type, pageToken = null) {
   };
 }
 
-// Init: fetch page 1, build the pool, show first batch.
+// Init: fetch page 1, build the pool, show first batch, start infinite scroll.
 async function initFoodieFeed(center, type) {
+  if (feedObserver) feedObserver.disconnect();  // pause observer during init
   foodiePool      = [];
   foodiePoolIdx   = 0;
   foodiePageToken = null;
@@ -1192,7 +1153,6 @@ async function initFoodieFeed(center, type) {
   const { places, nextPageToken } = await fetchFoodiePage(center, type);
   foodiePageToken = nextPageToken;
 
-  // Sort by score for the first-load pool so top posts appear first
   foodiePool = buildFoodiePosts(places);
   const batch = foodiePool.slice(0, FOODIE_BATCH);
   foodiePoolIdx = FOODIE_BATCH;
@@ -1200,6 +1160,8 @@ async function initFoodieFeed(center, type) {
   foodieTitle.textContent = TYPE_LABELS[type] || 'Top Places';
   renderPostCards(batch);
   foodieWrap.classList.remove('hidden');
+
+  initFeedObserver();  // begin watching the bottom sentinel
 }
 
 // ── Google Places (New HTTP API) ──────────────────────────────────────────────

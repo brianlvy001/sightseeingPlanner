@@ -933,30 +933,27 @@ main {
 }
 
 /* ── Pull-to-refresh bar ─────────────────────────────── */
+/* Sentinel for IntersectionObserver — always in layout, invisible when idle */
 #foodie-pull-bar {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 14px 0 8px;
-  color: #ccc;
-  font-size: 0.75rem;
+  padding: 20px 0 24px;
+  color: #ff2442;
+  font-size: 0.78rem;
   font-weight: 600;
   user-select: none;
-  transition: color 0.2s;
+  visibility: hidden;
 }
 
 #foodie-pull-icon {
   font-size: 1rem;
   display: inline-block;
-  transition: transform 0.25s;
 }
 
-#foodie-pull-bar[data-state="pulling"] {
-  color: #ff2442;
-}
 #foodie-pull-bar[data-state="refreshing"] {
-  color: #ff2442;
+  visibility: visible;
 }
 #foodie-pull-bar[data-state="refreshing"] #foodie-pull-icon {
   animation: spin 0.7s linear infinite;
