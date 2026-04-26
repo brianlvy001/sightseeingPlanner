@@ -52,9 +52,10 @@ const postTopbarName = document.getElementById('post-topbar-name');
 const postMapsLink   = document.getElementById('post-maps-link');
 const postGallery    = document.getElementById('post-gallery');
 const postScroll     = document.getElementById('post-scroll');
-const postAuthorRow    = document.getElementById('post-author-row');
-const postFullText     = document.getElementById('post-full-text');
-const postLocationMap  = document.getElementById('post-location-map');
+const postAuthorRow      = document.getElementById('post-author-row');
+const postFullText       = document.getElementById('post-full-text');
+const postLocationInfo   = document.getElementById('post-location-info');
+const postLocationFrame  = document.getElementById('post-location-frame');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -422,8 +423,6 @@ let routeLeaflet  = null;
 let routePolyline = null;
 let routeOriginMk = null;
 let routeDestMk   = null;
-let postLeaflet   = null;
-let postPinMk     = null;
 
 // OSRM profile per travel mode (transit falls back to driving)
 const OSRM_PROFILE = { driving: 'driving', walking: 'foot', transit: 'driving' };
@@ -797,27 +796,22 @@ function openPostModal(post) {
   postModal.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 
-  // Location map — defer until modal is visible so Leaflet can measure the container
-  const placeLat = place.location?.latitude;
-  const placeLng = place.location?.longitude;
-  const placeName = place.displayName?.text || '';
+  // Location info + Google Maps route
+  const placeLat     = place.location?.latitude;
+  const placeLng     = place.location?.longitude;
+  const placeName    = place.displayName?.text || '';
+  const placeAddress = place.formattedAddress || '';
+
+  postLocationInfo.innerHTML = `
+    <div class="post-location-name">${escHtml(placeName)}</div>
+    ${placeAddress ? `<div class="post-location-address">${escHtml(placeAddress)}</div>` : ''}`;
+
   if (placeLat && placeLng) {
-    setTimeout(() => {
-      if (!postLeaflet) {
-        postLeaflet = L.map(postLocationMap, { zoomControl: true, scrollWheelZoom: false })
-          .setView([placeLat, placeLng], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-          maxZoom: 19,
-        }).addTo(postLeaflet);
-      } else {
-        postLeaflet.setView([placeLat, placeLng], 16);
-        postLeaflet.invalidateSize();
-        if (postPinMk) postLeaflet.removeLayer(postPinMk);
-      }
-      postPinMk = L.marker([placeLat, placeLng]).addTo(postLeaflet)
-        .bindPopup(`<strong>${escHtml(placeName)}</strong>`).openPopup();
-    }, 200);
+    const zoom = lastCenter ? routeZoomForDistance(lastCenter.lat, lastCenter.lng, placeLat, placeLng) : 15;
+    postLocationFrame.src = lastCenter
+      ? `https://maps.google.com/maps?saddr=${lastCenter.lat},${lastCenter.lng}` +
+        `&daddr=${placeLat},${placeLng}&dirflg=d&z=${zoom}&output=embed`
+      : `https://www.google.com/maps?q=${placeLat},${placeLng}&z=15&output=embed`;
   }
 }
 
