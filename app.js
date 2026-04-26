@@ -867,19 +867,25 @@ function openPostModal(post, idx = -1) {
     ? allPhotos.filter(ph => ph.authorAttributions?.some(a => sameContributor(a.uri, reviewerUri)))
     : [];
 
-  // Fall back to photos already matched during feed construction (same logic, same data)
+  // Fall back to photos pre-matched during feed construction
   if (reviewerPhotos.length === 0 && post.reviewerPhotos?.length) {
     reviewerPhotos = post.reviewerPhotos;
   }
 
-  if (reviewerPhotos.length === 0) {
-    postGallery.innerHTML = `<div class="post-gallery-placeholder">🍽️</div>`;
-  } else {
+  if (reviewerPhotos.length > 0) {
     postGallery.innerHTML = reviewerPhotos.map((ph, i) => {
       const url = `https://places.googleapis.com/v1/${ph.name}/media?maxWidthPx=800&key=${GAPI_KEY}`;
       return `<img class="post-gallery-photo" src="${url}" loading="${i < 3 ? 'eager' : 'lazy'}"
                alt="${escHtml(name)}" onerror="this.style.display='none'">`;
     }).join('');
+  } else if (post.photoUrl) {
+    // Google Places caps photos at 10 (curated/featured); most reviewer photos won't be in that set.
+    // Use the card photo we already have — it's the best available photo for this post.
+    const url = post.photoUrl.replace('maxWidthPx=400', 'maxWidthPx=800');
+    postGallery.innerHTML = `<img class="post-gallery-photo" src="${url}" loading="eager"
+             alt="${escHtml(name)}" onerror="this.style.display='none'">`;
+  } else {
+    postGallery.innerHTML = `<div class="post-gallery-placeholder">🍽️</div>`;
   }
 
   // Author row
