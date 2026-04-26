@@ -965,7 +965,7 @@ main {
 
 .rn-photo {
   width: 100%;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: var(--photo-ratio, 3/4);
   object-fit: cover;
   display: block;
 }
@@ -1054,7 +1054,7 @@ main {
   color: #1a1a1a;
   line-height: 1.52;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: var(--text-clamp, 3);
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-bottom: 7px;

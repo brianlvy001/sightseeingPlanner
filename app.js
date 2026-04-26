@@ -770,14 +770,20 @@ function renderFoodieCards(places, type, source) {
   foodieWrap.classList.remove('hidden');
 }
 
+// Varied photo aspect ratios and text clamps — gives the 错落有致 stagger
+const PHOTO_RATIOS  = ['3/4', '2/3', '4/5', '1/1', '3/4', '2/3', '4/5', '3/4', '1/1', '4/5'];
+const TEXT_CLAMPS   = [3, 2, 4, 3, 2, 4, 3, 2, 3, 4];
+
 function postCardHtml({ place, review, photoUrl }, globalIdx = 0) {
   const name      = place.displayName?.text || '';
   const author    = review.authorAttribution?.displayName || 'Anonymous';
   const avatarUrl = review.authorAttribution?.photoUri || '';
   const rating    = review.rating || 0;
   const text      = review.text?.text || '';
+  const ratio     = PHOTO_RATIOS[globalIdx % PHOTO_RATIOS.length];
+  const clamp     = TEXT_CLAMPS[globalIdx % TEXT_CLAMPS.length];
   return `<div class="rn-card" data-post-idx="${globalIdx}">
-    <div class="rn-photo-wrap">
+    <div class="rn-photo-wrap" style="--photo-ratio:${ratio}">
       ${photoUrl
         ? `<img class="rn-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.closest('.rn-photo-wrap').classList.add('rn-no-photo')">`
         : ''}
@@ -794,7 +800,7 @@ function postCardHtml({ place, review, photoUrl }, globalIdx = 0) {
       </div>
     </div>
     <div class="rn-body">
-      <p class="rn-text">${escHtml(text)}</p>
+      <p class="rn-text" style="--text-clamp:${clamp}">${escHtml(text)}</p>
       <div class="rn-author-row">
         ${avatarUrl
           ? `<img class="rn-avatar" src="${avatarUrl}" alt="${escHtml(author)}" referrerpolicy="no-referrer">`
