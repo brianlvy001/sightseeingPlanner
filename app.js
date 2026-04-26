@@ -56,6 +56,7 @@ const postGallery    = document.getElementById('post-gallery');
 const postScroll     = document.getElementById('post-scroll');
 const postAuthorRow      = document.getElementById('post-author-row');
 const postFullText       = document.getElementById('post-full-text');
+const postReviewLink     = document.getElementById('post-review-link');
 const postLocationInfo   = document.getElementById('post-location-info');
 const postLocationFrame  = document.getElementById('post-location-frame');
 
@@ -797,6 +798,14 @@ function openPostModal(post, idx = -1) {
 
   // Full review text
   postFullText.textContent = text;
+
+  // Link to the reviewer's Google Maps profile (closest to a direct review link)
+  if (reviewerUri) {
+    postReviewLink.href = reviewerUri;
+    postReviewLink.style.display = '';
+  } else {
+    postReviewLink.style.display = 'none';
+  }
 
   postScroll.scrollTop   = 0;
   postGallery.scrollLeft = 0;
