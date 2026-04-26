@@ -52,8 +52,9 @@ const postTopbarName = document.getElementById('post-topbar-name');
 const postMapsLink   = document.getElementById('post-maps-link');
 const postGallery    = document.getElementById('post-gallery');
 const postScroll     = document.getElementById('post-scroll');
-const postAuthorRow  = document.getElementById('post-author-row');
-const postFullText   = document.getElementById('post-full-text');
+const postAuthorRow    = document.getElementById('post-author-row');
+const postFullText     = document.getElementById('post-full-text');
+const postLocationMap  = document.getElementById('post-location-map');
 
 // OSM: query restaurants filtered by cuisine tag
 const CQ = (cuisine) =>
@@ -421,6 +422,8 @@ let routeLeaflet  = null;
 let routePolyline = null;
 let routeOriginMk = null;
 let routeDestMk   = null;
+let postLeaflet   = null;
+let postPinMk     = null;
 
 // OSRM profile per travel mode (transit falls back to driving)
 const OSRM_PROFILE = { driving: 'driving', walking: 'foot', transit: 'driving' };
@@ -701,8 +704,6 @@ function renderPostCards(posts) {
     const rating    = review.rating || 0;
     const timeAgo   = review.relativePublishTimeDescription || '';
     const text      = review.text?.text || '';
-    const destLat   = place.location.latitude;
-    const destLng   = place.location.longitude;
 
     return `<div class="rn-card">
       <div class="rn-photo-wrap">
@@ -711,7 +712,6 @@ function renderPostCards(posts) {
           : ''}
         <div class="rn-photo-gradient"></div>
         <div class="rn-place-badge">${escHtml(name)}</div>
-        ${lastCenter ? `<button class="rn-route-btn" data-lat="${destLat}" data-lng="${destLng}" data-name="${escHtml(name)}">🗺️ Route</button>` : ''}
       </div>
       <div class="rn-body">
         <p class="rn-text">${escHtml(text)}</p>
@@ -726,8 +726,6 @@ function renderPostCards(posts) {
       </div>
     </div>`;
   }).join('');
-
-  wireRouteButtons();
 }
 
 function wireRouteButtons() {
@@ -794,10 +792,33 @@ function openPostModal(post) {
   // Full review text
   postFullText.textContent = text;
 
-  postScroll.scrollTop  = 0;
+  postScroll.scrollTop   = 0;
   postGallery.scrollLeft = 0;
   postModal.classList.add('is-open');
   document.body.style.overflow = 'hidden';
+
+  // Location map — defer until modal is visible so Leaflet can measure the container
+  const placeLat = place.location?.latitude;
+  const placeLng = place.location?.longitude;
+  const placeName = place.displayName?.text || '';
+  if (placeLat && placeLng) {
+    setTimeout(() => {
+      if (!postLeaflet) {
+        postLeaflet = L.map(postLocationMap, { zoomControl: true, scrollWheelZoom: false })
+          .setView([placeLat, placeLng], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 19,
+        }).addTo(postLeaflet);
+      } else {
+        postLeaflet.setView([placeLat, placeLng], 16);
+        postLeaflet.invalidateSize();
+        if (postPinMk) postLeaflet.removeLayer(postPinMk);
+      }
+      postPinMk = L.marker([placeLat, placeLng]).addTo(postLeaflet)
+        .bindPopup(`<strong>${escHtml(placeName)}</strong>`).openPopup();
+    }, 200);
+  }
 }
 
 function closePostModal() {

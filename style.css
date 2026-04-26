@@ -1149,6 +1149,26 @@ main {
   margin: 0;
 }
 
+/* Location map */
+.post-location-section {
+  padding: 1rem;
+  padding-bottom: 2rem;
+}
+.post-location-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.post-location-map {
+  height: 220px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+}
+
 /* Comments */
 .post-comments-section {
   padding: 0 0 2rem;
