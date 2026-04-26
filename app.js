@@ -1,5 +1,18 @@
 const RADIUS_M = 12874; // 8 miles
 
+const FALLBACK_CITIES = [
+  { name: 'San Francisco, CA',  lat: 37.7749,  lng: -122.4194 },
+  { name: 'New York, NY',       lat: 40.7128,  lng: -74.0060  },
+  { name: 'Los Angeles, CA',    lat: 34.0522,  lng: -118.2437 },
+  { name: 'Chicago, IL',        lat: 41.8781,  lng: -87.6298  },
+  { name: 'Seattle, WA',        lat: 47.6062,  lng: -122.3321 },
+  { name: 'Austin, TX',         lat: 30.2672,  lng: -97.7431  },
+  { name: 'Miami, FL',          lat: 25.7617,  lng: -80.1918  },
+  { name: 'Boston, MA',         lat: 42.3601,  lng: -71.0589  },
+  { name: 'Portland, OR',       lat: 45.5051,  lng: -122.6750 },
+  { name: 'Nashville, TN',      lat: 36.1627,  lng: -86.7816  },
+];
+
 const form          = document.getElementById('search-form');
 const input         = document.getElementById('address-input');
 const typeSelect    = document.getElementById('type-select');
@@ -1485,3 +1498,64 @@ function setStatus(msg, isError = false) {
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ── Auto-load on startup ──────────────────────────────────────────────────────
+async function autoLoad() {
+  const type = typeSelect.value;
+  setStatus('Finding places near you…');
+  locateBtn.classList.add('loading');
+  locateBtn.disabled = true;
+
+  let center = null;
+
+  if (navigator.geolocation) {
+    try {
+      const pos = await new Promise((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          timeout: 8000,
+          maximumAge: 300000,
+          enableHighAccuracy: false,
+        })
+      );
+      const { latitude: lat, longitude: lng } = pos.coords;
+      center = { lat, lng };
+
+      // Reverse-geocode for a readable address label
+      try {
+        const res  = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+        );
+        const data = await res.json();
+        const a    = data.address || {};
+        const label = [
+          a.city || a.town || a.village || a.county,
+          a.state,
+        ].filter(Boolean).join(', ');
+        input.value = label || data.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      } catch {
+        input.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+      }
+    } catch {
+      // Denied or timed out — fall through to random city
+    }
+  }
+
+  if (!center) {
+    const city  = FALLBACK_CITIES[Math.floor(Math.random() * FALLBACK_CITIES.length)];
+    center      = { lat: city.lat, lng: city.lng };
+    input.value = city.name;
+  }
+
+  locateBtn.classList.remove('loading');
+  locateBtn.disabled = false;
+
+  try {
+    lastCenter = center;
+    await initFoodieFeed(center, type);
+    setStatus('');
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
+autoLoad();
