@@ -148,6 +148,7 @@ let foodiePoolIdx     = 0;   // next index to display from pool
 let foodiePageToken   = null; // next-page token from searchText
 let foodieType        = null; // type used for the current foodie feed
 let currentPostIdx    = -1;   // index of currently open post in foodieList._posts
+let foodieCardCount   = 0;   // total cards rendered, used to assign left/right column
 
 const FOODIE_BATCH = 20;
 let leafletMap   = null;
@@ -739,13 +740,13 @@ function renderFoodieCards(places, type, source) {
   foodieWrap.classList.remove('hidden');
 }
 
-function postCardHtml({ place, review, photoUrl }) {
+function postCardHtml({ place, review, photoUrl }, globalIdx = 0) {
   const name      = place.displayName?.text || '';
   const author    = review.authorAttribution?.displayName || 'Anonymous';
   const avatarUrl = review.authorAttribution?.photoUri || '';
   const rating    = review.rating || 0;
   const text      = review.text?.text || '';
-  return `<div class="rn-card">
+  return `<div class="rn-card" data-post-idx="${globalIdx}">
     <div class="rn-photo-wrap">
       ${photoUrl
         ? `<img class="rn-photo" src="${photoUrl}" alt="${escHtml(name)}" loading="lazy" onerror="this.closest('.rn-photo-wrap').classList.add('rn-no-photo')">`
@@ -768,22 +769,40 @@ function postCardHtml({ place, review, photoUrl }) {
 
 function renderPostCards(posts) {
   foodieList._posts = posts;
+  foodieCardCount   = 0;
   foodieCount.textContent = `${posts.length} post${posts.length !== 1 ? 's' : ''}`;
+
   if (posts.length === 0) {
     foodieList.innerHTML = '<p class="rn-empty">No reviews with text found. Try a different area.</p>';
     return;
   }
-  foodieList.innerHTML = posts.map(postCardHtml).join('');
+
+  // Two independent column divs — appending to one never reflows the other
+  foodieList.innerHTML = '<div class="foodie-col"></div><div class="foodie-col"></div>';
+  const cols = foodieList.children;
+  posts.forEach((post, i) => {
+    const el = document.createElement('div');
+    el.innerHTML = postCardHtml(post, i);
+    cols[i % 2].appendChild(el.firstElementChild);
+  });
+  foodieCardCount = posts.length;
 }
 
 function appendPostCards(newPosts) {
   if (!newPosts.length) return;
-  const allPosts = foodieList._posts || [];
-  foodieList._posts = [...allPosts, ...newPosts];
+  const startIdx = (foodieList._posts || []).length;
+  foodieList._posts = [...(foodieList._posts || []), ...newPosts];
   foodieCount.textContent = `${foodieList._posts.length} post${foodieList._posts.length !== 1 ? 's' : ''}`;
-  const temp = document.createElement('div');
-  temp.innerHTML = newPosts.map(postCardHtml).join('');
-  while (temp.firstChild) foodieList.appendChild(temp.firstChild);
+
+  const cols = foodieList.querySelectorAll('.foodie-col');
+  if (cols.length < 2) { renderPostCards(foodieList._posts); return; }
+
+  newPosts.forEach((post, i) => {
+    const el = document.createElement('div');
+    el.innerHTML = postCardHtml(post, startIdx + i);
+    cols[foodieCardCount % 2].appendChild(el.firstElementChild);
+    foodieCardCount++;
+  });
 }
 
 function wireRouteButtons() {
@@ -915,10 +934,10 @@ document.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   const card = e.target.closest('.rn-card:not(.rn-osm)');
   if (!card || e.target.closest('.rn-route-btn')) return;
-  const idx  = [...foodieList.querySelectorAll('.rn-card:not(.rn-osm)')].indexOf(card);
-  if (idx < 0) return;
-  const renderedPosts = foodieList._posts;
-  if (renderedPosts?.[idx]) openPostModal(renderedPosts[idx], idx);
+  const idx = parseInt(card.dataset.postIdx, 10);
+  if (isNaN(idx)) return;
+  const posts = foodieList._posts;
+  if (posts?.[idx]) openPostModal(posts[idx], idx);
 });
 
 // ── Infinite scroll (Foodie mode) ────────────────────────────────────────────
