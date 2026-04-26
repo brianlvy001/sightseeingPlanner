@@ -677,20 +677,6 @@ locateBtn.addEventListener('click', () => {
   );
 });
 
-// ── View switcher ─────────────────────────────────────────────────────────────
-viewTabs.forEach(tab => {
-  tab.addEventListener('click', () => {
-    currentView = tab.dataset.view;
-    viewTabs.forEach(t => t.classList.toggle('active', t === tab));
-    const isMapRoute = currentView === 'map-route';
-    mapSourceGroup.style.display = isMapRoute ? '' : 'none';
-    // Reset results
-    carouselWrap.classList.add('hidden');
-    mapContainer.classList.add('hidden');
-    foodieWrap.classList.add('hidden');
-    setStatus('');
-  });
-});
 
 // ── Foodie / RedNote renderer ─────────────────────────────────────────────────
 
