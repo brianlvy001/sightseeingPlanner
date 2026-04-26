@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Explore Nearby</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css?v=54" />
+  <link rel="stylesheet" href="style.css?v=55" />
 </head>
 <body>
   <header>
@@ -138,7 +138,11 @@
     <div class="post-topbar">
       <button id="post-back" class="post-back" aria-label="Back">&#8592;</button>
       <span id="post-topbar-name" class="post-topbar-name"></span>
-      <a id="post-maps-link" class="post-maps-link" target="_blank" rel="noopener">Maps ↗</a>
+      <div class="post-topbar-right">
+        <button id="post-prev" class="post-nav-btn" aria-label="Previous post" disabled>&#8249;</button>
+        <button id="post-next" class="post-nav-btn" aria-label="Next post" disabled>&#8250;</button>
+        <a id="post-maps-link" class="post-maps-link" target="_blank" rel="noopener">Maps ↗</a>
+      </div>
     </div>
     <div id="post-scroll" class="post-scroll">
       <div id="post-gallery" class="post-gallery"></div>
@@ -172,6 +176,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js?v=54"></script>
+  <script src="app.js?v=55"></script>
 </body>
 </html>

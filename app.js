@@ -50,6 +50,8 @@ const postModal      = document.getElementById('post-modal');
 const postBack       = document.getElementById('post-back');
 const postTopbarName = document.getElementById('post-topbar-name');
 const postMapsLink   = document.getElementById('post-maps-link');
+const postPrev       = document.getElementById('post-prev');
+const postNext       = document.getElementById('post-next');
 const postGallery    = document.getElementById('post-gallery');
 const postScroll     = document.getElementById('post-scroll');
 const postAuthorRow      = document.getElementById('post-author-row');
@@ -95,6 +97,7 @@ let foodiePool        = [];   // all posts from fetched pages
 let foodiePoolIdx     = 0;   // next index to display from pool
 let foodiePageToken   = null; // next-page token from searchText
 let foodieType        = null; // type used for the current foodie feed
+let currentPostIdx    = -1;   // index of currently open post in foodieList._posts
 
 const FOODIE_BATCH = 20;
 let leafletMap   = null;
@@ -737,7 +740,11 @@ function wireRouteButtons() {
 }
 
 // ── Post detail modal ─────────────────────────────────────────────────────────
-function openPostModal(post) {
+function openPostModal(post, idx = -1) {
+  currentPostIdx = idx;
+  const total = foodieList._posts?.length ?? 0;
+  postPrev.disabled = idx <= 0;
+  postNext.disabled = idx < 0 || idx >= total - 1;
   const { place, review } = post;
   const name      = place.displayName?.text || '';
   const gmapsUrl  = place.googleMapsUri || '';
@@ -822,8 +829,22 @@ function closePostModal() {
 }
 
 postBack.addEventListener('click', closePostModal);
+
+postPrev.addEventListener('click', () => {
+  const posts = foodieList._posts;
+  if (currentPostIdx > 0) openPostModal(posts[currentPostIdx - 1], currentPostIdx - 1);
+});
+postNext.addEventListener('click', () => {
+  const posts = foodieList._posts;
+  if (currentPostIdx >= 0 && currentPostIdx < posts.length - 1)
+    openPostModal(posts[currentPostIdx + 1], currentPostIdx + 1);
+});
+
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && postModal.classList.contains('is-open')) closePostModal();
+  if (!postModal.classList.contains('is-open')) return;
+  if (e.key === 'Escape') closePostModal();
+  if (e.key === 'ArrowLeft')  postPrev.click();
+  if (e.key === 'ArrowRight') postNext.click();
 });
 
 // Card click — open post detail
@@ -833,7 +854,7 @@ document.addEventListener('click', e => {
   const idx  = [...foodieList.querySelectorAll('.rn-card:not(.rn-osm)')].indexOf(card);
   if (idx < 0) return;
   const renderedPosts = foodieList._posts;
-  if (renderedPosts?.[idx]) openPostModal(renderedPosts[idx]);
+  if (renderedPosts?.[idx]) openPostModal(renderedPosts[idx], idx);
 });
 
 // ── Pull-to-refresh at bottom (Foodie mode only) ──────────────────────────────
